@@ -51,10 +51,10 @@ const ChatWindow = (userid) => {
   useEffect(() => {
     if (!socket) return;
     const peer = new Peer(undefined, {
-      host: "https://chatplugin-74io.onrender.com", // Assuming your PeerJS server is on the same host
-      port: "8000", // The port your server is running on
-      path: "/peerjs/myapp", // The path you set for the PeerJS server
-    });
+  host: "https://chatplugin-74io.onrender.com/", // Change this to your actual backend URL
+  secure: true,  // Use secure WebSocket (wss) connection
+  path: "/peerjs/myapp", // Keep the same path as on your server
+});
 
     peer.on("open", (id) => {
       console.log("My peer ID is: " + id);
