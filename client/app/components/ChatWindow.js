@@ -51,7 +51,7 @@ const ChatWindow = (userid) => {
   useEffect(() => {
     if (!socket) return;
     const peer = new Peer(undefined, {
-      host: "/", // Assuming your PeerJS server is on the same host
+      host: "https://chatplugin-74io.onrender.com", // Assuming your PeerJS server is on the same host
       port: "8000", // The port your server is running on
       path: "/peerjs/myapp", // The path you set for the PeerJS server
     });
