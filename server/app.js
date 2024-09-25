@@ -20,6 +20,9 @@ const peerServer = ExpressPeerServer(server, {
 });
 
 app.use("/peerjs", peerServer);
+app.get("/", (req, res) => {
+  res.send("Hello world");
+});
 
 // MongoDB connection setup
 const mongoURI =process.env.MONGO_URI;
