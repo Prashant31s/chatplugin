@@ -1,0 +1,35 @@
+.content-editable {
+    min-height: 100px;
+    width: 100%;
+    border: 1px solid #ccc;
+    padding: 10px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+   
+  .image-viewer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    height: 100%;
+    width: 100%;
+  }
+   
+  .image-viewer-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 80vh;
+    width: 80vw;
+    /* height: 80vh;
+    width: 80vw; */
+    /* position: absolute; */
+    /* flex-direction: column; */
+  }
+   
+  
