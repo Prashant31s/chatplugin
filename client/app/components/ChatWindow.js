@@ -35,7 +35,7 @@ const ChatWindow = (userid) => {
   //   //console.log("userid", userid)
   // },[userid])
   useEffect(() => {
-    const newSocket = io("http://localhost:8000");
+    const newSocket = io("https://chatplugin-74io.onrender.com/");
     setSocket(newSocket);
     newSocket.on("connect", () => setIsConnected(true));
     newSocket.on("disconnect", () => setIsConnected(false));
