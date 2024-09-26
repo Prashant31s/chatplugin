@@ -63,7 +63,7 @@ const ChatWindow = (userid) => {
     }
   }, [socket, catcherId]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!socket || !peer) return;
 
     const handleMessage = (msg) => {
@@ -85,6 +85,73 @@ const ChatWindow = (userid) => {
 
     socket.on("sub-employee joined", (subEmployee) => {
       setUsers((prevUsers) => [...prevUsers, subEmployee]);
+    });
+    socket.on('group updated', (updatedGroupDetails) => {
+      //console.log("updategroupdetails",updatedGroupDetails)
+      setGroups((prevGroups) => {
+        const groupIndex = prevGroups.findIndex((g) => g.id === updatedGroupDetails.id);
+        if (groupIndex !== -1) {
+          // Update existing group
+          const newGroups = [...prevGroups];
+          newGroups[groupIndex] = updatedGroupDetails;
+          return newGroups;
+        } else {
+          // Add new group if it doesn't exist
+          return [...prevGroups, updatedGroupDetails];
+        }
+      });
+
+      // Update users lists if the updated group is the currently selected group
+      if (selectedGroup && selectedGroup.id === updatedGroupDetails.id) {
+        setUsersInSelectedGroup(updatedGroupDetails.usersInGroup);
+        setUsersNotInSelectedGroup(updatedGroupDetails.usersNotInGroup);
+      }
+    });
+    socket.on('user removed from group', (groupId) => {
+      setGroups((prevGroups) => prevGroups.filter((group) => group.id !== groupId));
+      if (selectedGroup?.id === groupId) {
+        setSelectedGroup(null);
+        setActiveChat('private');
+      }
+    });
+    socket.on('removed from group', (groupId) => {
+      console.log("i am removed from",groupId,selectedGroup)
+      setGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
+      // setSelectedGroup(null);
+      
+      // console.log("i am removed from 2.0",groupId,selectedGroup.id)
+      if (selectedGroup && selectedGroup.id === groupId) {
+        setSelectedGroup(null);
+        setActiveChat('private');
+      }
+    });
+    socket.on('added to group', (newGroup) => {
+      setGroups((prevGroups) => {
+        if (!prevGroups.some((g) => g.id === newGroup.id)) {
+          return [...prevGroups, newGroup];
+        }
+        return prevGroups;
+      });
+    });
+
+    socket.on('group details', (groupDetails) => {
+      //console.log('Received group details:', groupDetails);
+ 
+      // Validate the data to ensure arrays are not empty or undefined
+      if (!groupDetails || !Array.isArray(groupDetails.usersInGroup) || !Array.isArray(groupDetails.usersNotInGroup)) {
+        console.error('Invalid group details received:', groupDetails);
+        setUsersInSelectedGroup([]);
+        setUsersNotInSelectedGroup([]);
+        return;
+      }
+ 
+      // Set the state with validated data
+      setUsersInSelectedGroup(groupDetails.usersInGroup);
+      setUsersNotInSelectedGroup(groupDetails.usersNotInGroup);
+ 
+      // Additional logging for debugging
+      // console.log('Users in group:', groupDetails.usersInGroup);
+      // console.log('Users not in group:', groupDetails.usersNotInGroup);
     });
 
     socket.on("chat message", handleMessage);
@@ -138,8 +205,9 @@ const ChatWindow = (userid) => {
       socket.off("sub-employee joined");
       socket.off("incoming-call", handleIncomingCall);
       socket.off("call-ended", handleCallEnded);
+      socket.off("removed from group");
     };
-  }, [socket, peer,selectedGroup,userId]);
+  }, [socket, peer,selectedGroup,userId,usersNotInSelectedGroup]);
 
   const startCall = useCallback(async () => {
     try {
