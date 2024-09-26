@@ -239,7 +239,7 @@
 
           // Save the updated user to the database
           //console.log("prevsocketid", xsocketid);
-          users.delete(xsocketid);
+          //users.delete(xsocketid);
           users.set(socket.id, user);
           //await existingUser.save();
         } else {
