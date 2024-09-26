@@ -139,7 +139,7 @@ const ChatWindow = (userid) => {
       socket.off("incoming-call", handleIncomingCall);
       socket.off("call-ended", handleCallEnded);
     };
-  }, [socket, peer]);
+  }, [socket, peer,selectedGroup,userId]);
 
   const startCall = useCallback(async () => {
     try {
