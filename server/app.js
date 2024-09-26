@@ -625,9 +625,10 @@
       io.to(data.from).emit("response-final", data);
       //console.log("ddddd", data);
     });
-    socket.on("call-user", (data) => {
-      //console.log("data", data);
-      const { useroncall, signalData } = data;
+   socket.on("call-user", (data) => {
+    //console.log("data", data);
+    const { useroncall, signalData } = data;
+    if (useroncall&&useroncall.id) {
       const userdetails = users.get(socket.id);
       //console.log("userdetails", userdetails, useroncall);
       const userToCall = Array.from(users.values()).find(
@@ -640,7 +641,8 @@
           useroncall: userdetails,
         });
       }
-    });
+    }
+  });
 
     socket.on("answer-call", (data) => {
       io.to(data.to).emit("call-accepted", data.signal);
