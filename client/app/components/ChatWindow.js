@@ -392,9 +392,9 @@ const ChatWindow = (userid) => {
 
   const selectUser = (user) => {
     setSelectedUser(user);
-    if(!useroncall){
+    
       setUserOnCall(user);
-    }
+    
     setActiveChat("private");
     setSelectedGroup(null);
     const chatId = getChatId(userId, user.id);
