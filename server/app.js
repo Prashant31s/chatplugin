@@ -239,7 +239,7 @@
 
           // Save the updated user to the database
           //console.log("prevsocketid", xsocketid);
-          //users.delete(xsocketid);
+          users.delete(xsocketid);
           users.set(socket.id, user);
           //await existingUser.save();
         } else {
@@ -625,10 +625,13 @@
       io.to(data.from).emit("response-final", data);
       //console.log("ddddd", data);
     });
-   socket.on("call-user", (data) => {
+  socket.on("call-user", (data) => {
+    console.log("usrs",users)
     //console.log("data", data);
     const { useroncall, signalData } = data;
+    console.log("usersonccall", useroncall);
     if (useroncall&&useroncall.id) {
+
       const userdetails = users.get(socket.id);
       //console.log("userdetails", userdetails, useroncall);
       const userToCall = Array.from(users.values()).find(
