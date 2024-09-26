@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import io from "socket.io-client";
 import Peer from "peerjs";
+import usePeer from "../hooks/usePeer";
 
 const ChatWindow = (userid) => {
   const [socket, setSocket] = useState(null);
@@ -27,6 +28,16 @@ const ChatWindow = (userid) => {
   const peerInstance = useRef(null);
   const [useroncall, setUserOnCall]=useState(null);
 
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
+
+  const [userIdToAdd, setUserIdToAdd] = useState('');
+  const [userIdToRemove, setUserIdToRemove] = useState('');
+
+  const [usersInSelectedGroup, setUsersInSelectedGroup] = useState([]);
+  const [usersNotInSelectedGroup, setUsersNotInSelectedGroup] = useState([]);
+
+  const { peer, myId } = usePeer();
   // useEffect(() => {
   //   console.log('Connection status changed:', isConnected);
   //   console.log('User ID:', userId);
@@ -35,10 +46,14 @@ const ChatWindow = (userid) => {
   //   //console.log("userid", userid)
   // },[userid])
   useEffect(() => {
-    const newSocket = io("http://localhost:8000");
+    const newSocket = io("http://localhost:8000/");
     setSocket(newSocket);
     newSocket.on("connect", () => setIsConnected(true));
-    newSocket.on("disconnect", () => setIsConnected(false));
+    newSocket.on("disconnect", () =>{ 
+    setIsConnected(false)
+    setUserId(null);
+
+  });
     return () => newSocket.close();
   }, []);
 
@@ -49,27 +64,12 @@ const ChatWindow = (userid) => {
   }, [socket, catcherId]);
 
   useEffect(() => {
-    if (!socket) return;
-    const peer = new Peer(undefined, {
-      host: "/", // Assuming your PeerJS server is on the same host
-      port: "8000", // The port your server is running on
-      path: "/peerjs/myapp", // The path you set for the PeerJS server
-    });
-
-    peer.on("open", (id) => {
-      console.log("My peer ID is: " + id);
-      setPeerId(id);
-    });
-
-    peerInstance.current = peer;
+    if (!socket || !peer) return;
 
     const handleMessage = (msg) => {
-      //console.log("message",msg);
       setMessages((prevMessages) => {
         const chatId = msg.chatId;
-        if (
-          prevMessages[chatId]?.some((existingMsg) => existingMsg.id === msg.id)
-        ) {
+        if (prevMessages[chatId]?.some((existingMsg) => existingMsg.id === msg.id)) {
           return prevMessages;
         }
         return {
@@ -83,13 +83,6 @@ const ChatWindow = (userid) => {
       setUsers(userList);
     });
 
-    socket.on("group list", (allGroups) => {
-      const filteredGroups = allGroups.filter((group) =>
-        group.members.includes(userId)
-      );
-      setGroups(filteredGroups);
-    });
-
     socket.on("sub-employee joined", (subEmployee) => {
       setUsers((prevUsers) => [...prevUsers, subEmployee]);
     });
@@ -101,49 +94,37 @@ const ChatWindow = (userid) => {
         [history[0]?.chatId]: history,
       }));
     });
-    socket.on(
-      "login successful",
-      ({ user, usersWithSameParent, chatHistory }) => {
-        //console.log('Received login successful', { user, usersWithSameParent });
-        setUserId(user.id);
-        setIsConnected(true);
-        setEmployerRoom(`employer-${user.parentId}`);
-        setUsers(usersWithSameParent);
 
-        const organizedHistory = chatHistory.reduce((acc, msg) => {
-          if (!acc[msg.chatId]) {
-            acc[msg.chatId] = [];
-          }
-          acc[msg.chatId].push(msg);
-          return acc;
-        }, {});
+    socket.on("login successful", ({ user, usersWithSameParent, chatHistory }) => {
+      setUserId(user.id);
+      setIsConnected(true);
+      setEmployerRoom(`employer-${user.parentId}`);
+      setUsers(usersWithSameParent);
 
-        setMessages(organizedHistory);
-      }
-    );
+      const organizedHistory = chatHistory.reduce((acc, msg) => {
+        if (!acc[msg.chatId]) {
+          acc[msg.chatId] = [];
+        }
+        acc[msg.chatId].push(msg);
+        return acc;
+      }, {});
+
+      setMessages(organizedHistory);
+    });
 
     socket.on("login failed", (error) => {
       console.error("Login failed:", error);
-      // Handle login failure (e.g., show an error message to the user)
     });
 
-    socket.on("user joined", (user) =>
-      setUsers((prevUsers) => [...prevUsers, user])
-    );
-    socket.on("user left", (userId) =>
-      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId))
-    );
-    socket.on("group created", (group) =>
-      setGroups((prevGroups) => [...prevGroups, group])
-    );
+    socket.on("user joined", (user) => setUsers((prevUsers) => [...prevUsers, user]));
+    socket.on("user left", (userId) => setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId)));
+    socket.on("group created", (group) => setGroups((prevGroups) => [...prevGroups, group]));
     socket.on("group list", setGroups);
 
     socket.on("incoming-call", handleIncomingCall);
     socket.on("call-ended", handleCallEnded);
 
     peer.on("call", handleIncomingPeerCall);
-    socket.on("check-call", handlecheckcall);
-    socket.on("response-final",handlereponsefinal);
 
     return () => {
       socket.off("chat message", handleMessage);
@@ -155,59 +136,38 @@ const ChatWindow = (userid) => {
       socket.off("group created");
       socket.off("group list");
       socket.off("sub-employee joined");
-
       socket.off("incoming-call", handleIncomingCall);
-      peer.destroy();
       socket.off("call-ended", handleCallEnded);
     };
-  }, [socket, userId]);
-  const check=()=>{
-    socket.emit("check-available",{
-      useroncall: useroncall,
-      signalData: peerId,
-    })
-  }
-  const handlereponsefinal=(data)=>{
-    console.log("dataaaaaaaa",data);
-    startCall();
-  }
-
-  const handlecheckcall=(data)=>{
-    console.log("remotestream-localstream", remoteStream,localStream,data)
-    socket.emit ("response", data);
-  }
+  }, [socket, peer]);
 
   const startCall = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
 
-      const call = peerInstance.current.call(selectedUser.id, stream);
+      const call = peer.call(selectedUser.id, stream);
       call.on("stream", handleStream);
       
       socket.emit("call-user", {
         useroncall: useroncall,
-        signalData: peerId,
+        signalData: myId,
       });
 
       setIsCallActive(true);
     } catch (error) {
       console.error("Error starting call:", error);
     }
-  }, [selectedUser, socket, peerId,useroncall]);
+  }, [selectedUser, socket, myId, peer, useroncall]);
 
   const handleIncomingCall = useCallback((data) => {
-    console.log("rrrrrrrr", useroncall,remoteStream,localStream);
-    if(useroncall||localStream){
-      socket.emit("user-in-call")
-      console.log("data", data);
-      return ;
+    if (useroncall || localStream) {
+      socket.emit("user-in-call");
+      return;
     }
-    console.log("incoming call", data);
     setIncomingCall(data);
-    console.log("usersssssss", data.useroncall)
     setUserOnCall(data.useroncall);
-  }, []);
+  }, [useroncall, localStream, socket]);
 
   const handleIncomingPeerCall = useCallback(async (call) => {
     try {
@@ -226,25 +186,19 @@ const ChatWindow = (userid) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
 
-      const call = peerInstance.current.call(incomingCall.signal, stream);
+      const call = peer.call(incomingCall.signal, stream);
       call.on("stream", handleStream);
 
-      socket.emit("answer-call", { signal: peerId, to: incomingCall.from });
+      socket.emit("answer-call", { signal: myId, to: incomingCall.from });
       setIsCallActive(true);
       setIncomingCall(null);
     } catch (error) {
       console.error("Error accepting call:", error);
     }
-  }, [incomingCall, socket, peerId]);
-  const calldeclined=()=>{
-    setIncomingCall(null);
-    console.log("useroncall", useroncall);
-    endCall();
-  }
+  }, [incomingCall, socket, myId, peer]);
 
   const handleStream = useCallback((remoteStream) => {
     setRemoteStream(remoteStream);
-    
   }, []);
 
   const endCall = useCallback(() => {
@@ -255,13 +209,11 @@ const ChatWindow = (userid) => {
     setRemoteStream(null);
     setIsCallActive(false);
     
-    // Notify the other peer that the call has ended
     socket.emit("end-call", useroncall.id);
     setUserOnCall(null);
-  }, [localStream, selectedUser, socket,useroncall]);
+  }, [localStream, socket, useroncall]);
 
   const handleCallEnded = useCallback(() => {
-    console.log("call-ended");
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
     }
@@ -269,14 +221,51 @@ const ChatWindow = (userid) => {
       remoteStream.getTracks().forEach((track) => track.stop());
     }
   
-    console.log("remotestream ended", remoteStream, localStream);
     setLocalStream(null);
     setRemoteStream(null);
     setIsCallActive(false);
     setUserOnCall(null);
+  }, [localStream, remoteStream]);
+  
+  const check=()=>{
+    socket.emit("check-available",{
+      useroncall: useroncall,
+      signalData: peerId,
+    })
+  }
+  const handlereponsefinal=(data)=>{
+    console.log("dataaaaaaaa",data);
+    startCall();
+  }
+  const calldeclined=()=>{
+    setIncomingCall(null);
+    console.log("useroncall", useroncall);
+    endCall();
+  }
 
-    console.log("switch-off call");
-  }, [endCall,localStream]);
+  const handlecheckcall=(data)=>{
+    console.log("remotestream-localstream", remoteStream,localStream,data)
+    socket.emit ("response", data);
+  }
+
+  const addUserToGroup = useCallback((userIdToAdd) => {
+    if (socket && selectedGroup) {
+      socket.emit('add to group', { groupId: selectedGroup.id, userId: userIdToAdd });
+    }
+  }, [socket, selectedGroup]);
+
+  // Update the removeUserFromGroup function
+  const removeUserFromGroup = useCallback((userIdToRemove) => {
+    if (socket && selectedGroup) {
+      socket.emit('remove from group', { groupId: selectedGroup.id, userId: userIdToRemove });
+      if (userIdToRemove === userId) {
+        // If the user is removing themselves, update the UI immediately
+        setGroups(prevGroups => prevGroups.filter(group => group.id !== selectedGroup.id));
+        setSelectedGroup(null);
+        setActiveChat('private');
+      }
+    }
+  }, [socket, selectedGroup, userId]);
 
   const getChatId = (user1, user2) => {
     return [user1, user2].sort().join("-");
@@ -335,11 +324,13 @@ const ChatWindow = (userid) => {
   };
 
   const selectGroup = (group) => {
+    console.log("selectedgroup", group);
     setSelectedGroup(group);
     setActiveChat("group");
     setSelectedUser(null);
     const chatId = `group-${group.id}`;
     socket.emit("fetch chat history", chatId);
+    socket.emit('fetch group details', group.id);
   };
 
   const createGroup = useCallback(() => {
@@ -372,6 +363,10 @@ const ChatWindow = (userid) => {
       : employerRoom;
 
   const currentMessages = currentChatId ? messages[currentChatId] || [] : [];
+
+  useEffect(()=>{
+    console.log("sleevctede group val", selectedGroup);
+  },[selectedGroup])
   // ... (rest of the component logic remains the same)
 
   if (!isConnected || !userId) {
@@ -395,6 +390,115 @@ const ChatWindow = (userid) => {
       </div>
     );
   }
+  const renderAddUserModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="bg-white p-4 rounded">
+          <h2 className="text-lg font-semibold mb-2">Add User to Group</h2>
+          {usersNotInSelectedGroup.length === 0 ? (
+            <p className="text-red-500">No users available to add to the group.</p>
+          ) : (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Select User to Add:</label>
+              <select
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                onChange={(e) => setUserIdToAdd(e.target.value)}
+                value={userIdToAdd}
+              >
+                <option value="">Select a user</option>
+                {usersNotInSelectedGroup.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              if (userIdToAdd) {
+                addUserToGroup(userIdToAdd);
+              } else {
+                console.warn('No user selected to add.');
+              }
+              setShowAddUserModal(false);
+              setUserIdToAdd('');
+            }}
+            className="mt-2 px-4 py-2 bg-green-500 text-white rounded"
+            disabled={!userIdToAdd}
+          >
+            Add User
+          </button>
+          <button
+            onClick={() => {
+              setShowAddUserModal(false);
+              setUserIdToAdd('');
+            }}
+            className="mt-2 px-4 py-2 bg-gray-200 rounded"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  };
+ 
+
+  // Render the remove user modal
+  const renderRemoveUserModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="bg-white p-4 rounded">
+          <h2 className="text-lg font-semibold mb-2">Remove User from Group</h2>
+          {usersInSelectedGroup.length === 0 ? (
+            <p className="text-red-500">No users available to remove from the group.</p>
+          ) : (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Select User to Remove:</label>
+              <select
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                onChange={(e) => setUserIdToRemove(e.target.value)}
+                value={userIdToRemove}
+              >
+                <option value="">Select a user</option>
+                {usersInSelectedGroup.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              if (userIdToRemove) {
+                removeUserFromGroup(userIdToRemove);
+              } else {
+                console.warn('No user selected to remove.');
+              }
+              setShowRemoveUserModal(false);
+              setUserIdToRemove('');
+            }}
+            className="mt-2 px-4 py-2 bg-red-500 text-white rounded"
+            disabled={!userIdToRemove}
+          >
+            Remove User
+          </button>
+          <button
+            onClick={() => {
+              setShowRemoveUserModal(false);
+              setUserIdToRemove('');
+            }}
+            className="mt-2 px-4 py-2 bg-gray-200 rounded"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  };
+ 
+
 
   return (
     <div className="flex h-screen max-w-4xl mx-auto p-4">
@@ -518,6 +622,22 @@ const ChatWindow = (userid) => {
             >
               Create New Group
             </button>
+            {selectedGroup?.createdBy === userId && (
+              <div className="flex space-x-2 mb-2">
+                <button
+                  className="px-4 py-2 bg-green-500 text-white rounded"
+                  onClick={() => setShowAddUserModal(true)}
+                >
+                  Add User
+                </button>
+                <button
+                  className="px-4 py-2 bg-red-500 text-white rounded"
+                  onClick={() => setShowRemoveUserModal(true)}
+                >
+                  Remove User
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -534,9 +654,9 @@ const ChatWindow = (userid) => {
               : "Select a user, group, or room to chat"}
           </h2>
 
-          {useroncall && (
+          
             <div className="mt-4">
-              {!isCallActive && (
+              {!isCallActive &&selectedUser&& (
                 <button
                   onClick={startCall}
                   className="bg-green-500 text-white px-4 py-2 rounded mr-2"
@@ -544,7 +664,7 @@ const ChatWindow = (userid) => {
                   Start Voice Call
                 </button>
               )}
-              {isCallActive && (
+              {isCallActive &&useroncall&& (
                 <button
                   onClick={endCall}
                   className="bg-red-500 text-white px-4 py-2 rounded"
@@ -553,10 +673,10 @@ const ChatWindow = (userid) => {
                 </button>
               )}
             </div>
-          )}
+      
           {isCallActive && (
             <div className="mt-4  flex flex-col">
-              <p className="h-[10px]">Call in progress with </p>
+              <p className="h-[10px]">Call in progress with {useroncall.username} </p>
               <audio
                 ref={(audio) => {
                   if (audio && remoteStream) {
@@ -652,6 +772,8 @@ const ChatWindow = (userid) => {
           </div>
         </div>
       )}
+      {showAddUserModal && renderAddUserModal()}
+      {showRemoveUserModal && renderRemoveUserModal()}
     </div>
   );
 };
