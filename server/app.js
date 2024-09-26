@@ -634,9 +634,9 @@
 
       const userdetails = users.get(socket.id);
       //console.log("userdetails", userdetails, useroncall);
-      const userToCall = Array.from(users.values()).find(
-        (user) => user.id === useroncall.id
-      );
+      const userToCall = Array.from(users.values())
+        .reverse()
+        .find((user) => user.id === useroncall.id);
       if (userToCall) {
         io.to(userToCall.socketId).emit("incoming-call", {
           signal: signalData,
