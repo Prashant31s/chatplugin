@@ -56,14 +56,18 @@ const ChatWindow = (userid) => {
   });
     return () => newSocket.close();
   }, []);
-
-  const login = useCallback(() => {
-    if (catcherId.trim() !== "" && socket) {
-      socket.emit("login", catcherId);
+  useEffect(()=>{
+    console.log("user", userid)
+    login();
+  },[userid])
+  const login = () => {
+    if ( socket&&userid) {
+      console.log("catcherid", userid.userid);
+      socket.emit("login", userid.userid);
     }
-  }, [socket, catcherId]);
+  };
 
-    useEffect(() => {
+  useEffect(() => {
     if (!socket || !peer) return;
 
     const handleMessage = (msg) => {
@@ -190,6 +194,7 @@ const ChatWindow = (userid) => {
 
     socket.on("incoming-call", handleIncomingCall);
     socket.on("call-ended", handleCallEnded);
+    socket.on("check-call",handlecheckcall);
 
     peer.on("call", handleIncomingPeerCall);
 
@@ -208,8 +213,11 @@ const ChatWindow = (userid) => {
       socket.off("removed from group");
     };
   }, [socket, peer,selectedGroup,userId,usersNotInSelectedGroup]);
+  
 
+  
   const startCall = useCallback(async () => {
+    check()
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
@@ -227,7 +235,7 @@ const ChatWindow = (userid) => {
       console.error("Error starting call:", error);
     }
   }, [selectedUser, socket, myId, peer, useroncall]);
-
+  
   const handleIncomingCall = useCallback((data) => {
     if (useroncall || localStream) {
       socket.emit("user-in-call");
@@ -278,10 +286,12 @@ const ChatWindow = (userid) => {
     setIsCallActive(false);
     
     socket.emit("end-call", useroncall.id);
-    setUserOnCall(null);
+    console.log("select",selectedUser);
+    //setUserOnCall(null);
   }, [localStream, socket, useroncall]);
 
   const handleCallEnded = useCallback(() => {
+    console.log("selecteduser", selectedUser);
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
     }
@@ -292,7 +302,7 @@ const ChatWindow = (userid) => {
     setLocalStream(null);
     setRemoteStream(null);
     setIsCallActive(false);
-    setUserOnCall(null);
+    //setUserOnCall(null);
   }, [localStream, remoteStream]);
   
   const check=()=>{
@@ -311,10 +321,10 @@ const ChatWindow = (userid) => {
     endCall();
   }
 
-  const handlecheckcall=(data)=>{
-    console.log("remotestream-localstream", remoteStream,localStream,data)
-    socket.emit ("response", data);
-  }
+  const handlecheckcall=useCallback((data)=>{
+    console.log("remotestream-localstream",isCallActive,data)
+    //socket.emit ("response", data);
+  },[isCallActive]);  
 
   const addUserToGroup = useCallback((userIdToAdd) => {
     if (socket && selectedGroup) {
@@ -432,32 +442,32 @@ const ChatWindow = (userid) => {
 
   const currentMessages = currentChatId ? messages[currentChatId] || [] : [];
 
-  useEffect(()=>{
-    console.log("sleevctede group val", selectedGroup);
-  },[selectedGroup])
+  // useEffect(()=>{
+  //   console.log("sleevctede group val", selectedGroup);
+  // },[selectedGroup])
   // ... (rest of the component logic remains the same)
 
-  if (!isConnected || !userId) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-64">
-          <input
-            type="text"
-            value={catcherId}
-            onChange={(e) => setCatcherId(e.target.value)}
-            placeholder="Enter your Catcher ID"
-            className="w-full px-3 py-2 border rounded mb-4"
-          />
-          <button
-            onClick={login}
-            className="w-full bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // if (!isConnected || !userId) {
+  //   return (
+  //     <div className="flex items-center justify-center h-screen">
+  //       <div className="w-64">
+  //         <input
+  //           type="text"
+  //           value={catcherId}
+  //           onChange={(e) => setCatcherId(e.target.value)}
+  //           placeholder="Enter your Catcher ID"
+  //           className="w-full px-3 py-2 border rounded mb-4"
+  //         />
+  //         <button
+  //           onClick={login}
+  //           className="w-full bg-blue-500 text-white px-4 py-2 rounded"
+  //         >
+  //           Login
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
   const renderAddUserModal = () => {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -724,27 +734,35 @@ const ChatWindow = (userid) => {
 
           
             <div className="mt-4">
-              {!isCallActive &&selectedUser&& (
-                <button
-                  onClick={startCall}
-                  className="bg-green-500 text-white px-4 py-2 rounded mr-2"
-                >
-                  Start Voice Call
-                </button>
-              )}
-              {isCallActive &&useroncall&& (
-                <button
-                  onClick={endCall}
-                  className="bg-red-500 text-white px-4 py-2 rounded"
-                >
-                  End Call
-                </button>
-              )}
+            {
+              !isCallActive ?(
+                selectedUser&& (
+                  <button
+                    onClick={startCall}
+                    className="bg-green-500 text-white px-4 py-2 rounded mr-2"
+                  >
+                    Start Voice Call
+                  </button>
+                )
+
+              ):(
+               useroncall&& (
+                  <button
+                    onClick={endCall}
+                    className="bg-red-500 text-white px-4 py-2 rounded"
+                  >
+                    End Call
+                  </button>
+                )
+              )
+            }
+              
+              
             </div>
       
           {isCallActive && (
             <div className="mt-4  flex flex-col">
-              <p className="h-[10px]">Call in progress with {useroncall.username} </p>
+              <p className="h-[10px]">Call in progress with  </p>
               <audio
                 ref={(audio) => {
                   if (audio && remoteStream) {
