@@ -60,6 +60,7 @@ const Message = mongoose.model("Message", messageSchema);
 
 const users = new Map();
 const groups = new Map();
+let callingsockets =[];
 
 // Dummy database
 const dummyEmployees = {
@@ -284,6 +285,7 @@ io.on("connection", (socket) => {
 
       // Emit the group list to the user
       io.to(user.socketId).emit("group list", userGroups);
+      io.to(user.socketId).emit("i am on call",callingsockets);
 
       if (user.userType === "sub-employee") {
         const employerSocket = Array.from(users.values()).find(
@@ -396,9 +398,9 @@ io.on("connection", (socket) => {
 
   // Event for removing a member from a group
   socket.on("remove from group", async ({ groupId, userId }) => {
-    console.log("user removed", groupId, userId);
+    //console.log("user removed", groupId, userId);
     try {
-      console.log("ussssserrr rerreemmoovveedd");
+      //console.log("ussssserrr rerreemmoovveedd");
       const group = await Group.findOne({ id: groupId });
       const allUsers = dummyEmployees.employees
         .filter((emp) => emp.parent_id === group.parentId)
@@ -407,7 +409,7 @@ io.on("connection", (socket) => {
           username: emp.name,
           userType: emp.type_id === 1 ? "employer" : "sub-employee",
         }));
-      console.log("removed group&& users", group.createdBy, socket.userId);
+      //console.log("removed group&& users", group.createdBy, socket.userId);
 
       if (group && group.createdBy === socket.userId) {
         group.members = group.members.filter((member) => member !== userId);
@@ -430,15 +432,15 @@ io.on("connection", (socket) => {
         const removedSocketIds = []; // Initialize an array to store keys
 
         users.forEach((values, keys) => {
-          console.log("valuesid", values, keys);
+          //console.log("valuesid", values, keys);
           if (values.id === userId) {
             removedSocketIds.push(keys); // Push the key into the array if the condition is met
           }
         });
-        console.log("removed users", removedSocketIds);
+        //console.log("removed users", removedSocketIds);
         //io.to(removedsocketid).emit("removed from group", groupId);
         removedSocketIds.forEach((socketId) => {
-          console.log("USER REMOVER", socketId, groupId);
+          //console.log("USER REMOVER", socketId, groupId);
           io.to(socketId).emit("removed from group", groupId);
         });
 
@@ -626,10 +628,10 @@ io.on("connection", (socket) => {
     //console.log("ddddd", data);
   });
   socket.on("call-user", (data) => {
-    console.log("usrs", users);
+    //console.log("usrs", users);
     //console.log("data", data);
     const { useroncall, signalData } = data;
-    console.log("usersonccall", useroncall);
+
     if (useroncall && useroncall.id) {
       const userdetails = users.get(socket.id);
       //console.log("userdetails", userdetails, useroncall);
@@ -648,20 +650,149 @@ io.on("connection", (socket) => {
   });
 
   socket.on("answer-call", (data) => {
-    io.to(data.to).emit("call-accepted", data.signal);
+    console.log("dddddddddddda",data.to,socket.id,data.groupcall);
+    let current = users.get(socket.id);
+    
+    let usersWithSameParent=[] 
+    
+    
+    //console.log("usersonccall", users);
+    users.forEach((value, key) => {
+      //console.log("valueparent", value.parentId,useroncall);
+      if(data.groupcall){
+        console.log("vvvvvvvvvvvvvv", value);
+        if(value.id===data.to||key===socket.id){
+          console.log("111", key);
+          callingsockets.push(key);
+        }
+      }
+      else{
+        if(key===data.to||key===socket.id){
+          callingsockets.push(key);
+          console.log("22222", key);
+        }
+      }
+      
+      
+      if(current.parentId===value.parentId){
+        //console.log("datasocket", value.socketId);
+        usersWithSameParent.push((value.socketId));
+      }
+    });
+    console.log("ddddooooooooo", usersWithSameParent, callingsockets);
+    for (let i=0;i<usersWithSameParent.length;i++){
+      //console.log("userswithsame", usersWithSameParent[i]);
+      io.to(usersWithSameParent[i]).emit("i am on call",callingsockets);
+    }
+    if(!data.groupcall){
+      io.to(data.to).emit("call-accepted", data.signal);
+    }
+    
   });
 
-  socket.on("end-call", (targetUserId) => {
-    //console.log("targetuserid", targetUserId, users);
+  socket.on("end-call", (targetUserId,data2) => {
+    
+    if(data2){
+      targetUserId= targetUserId.userid;
+    }
+    console.log("targetuserid", targetUserId,data2);
+    let usersWithSameParent=[] 
+    //let callingsockets =[];
+    let current = users.get(socket.id);
+    //console.log("usersonccall", users);
+    users.forEach((value, key) => {
+      //console.log("valueparent", value.parentId,useroncall);
+      
+      if(current.parentId===value.parentId){
+        //console.log("datasocket", value.socketId);
+        usersWithSameParent.push((value.socketId));
+      }
+    });
+    //console.log("ddddooooooooo", usersWithSameParent);
+    
+    
     const targetSockets = Array.from(users.values())
       .filter((user) => user.id === targetUserId) // Find all users that match the condition
       .map((user) => user.socketId); // Extract their socketIds
+    console.log("targetsockets", targetSockets);
+    for (let i=0;i<usersWithSameParent.length;i++){
+      //console.log("userswithsame", usersWithSameParent[i]);
+      io.to(usersWithSameParent[i]).emit("call-list-update",socket.id,targetSockets);
+    }
 
     // Emit to each socketId that satisfies the condition
     targetSockets.forEach((socketId) => {
+      for(let i=0;i<callingsockets.length;i++){
+        if(callingsockets[i]===socketId){
+          callingsockets.splice(i,1);
+        }
+      }
       io.to(socketId).emit("call-ended", socket.id);
     });
   });
+
+  socket.on("group-call",(data1,data2)=>{
+    //console.log("group-call", data1,data2);
+    const currentuser= users.get(socket.id);
+    let sockets=[];
+    //console.log("cuureeenntuser", currentuser);
+    for(let i=0;i<data1.members.length;i++){
+
+      const userToCall = Array.from(users.values())
+        .reverse()
+        .find((user) => user.id === data1.members[i]&&user.id!=currentuser.id);
+        //console.log("usertocall", userToCall);
+      sockets.push(userToCall)
+    }
+    //console.log("socketssss",sockets);
+    sockets.forEach((socket)=>{
+      //console.log("socketsforeach",socket);
+      if(socket){
+        io.to(socket.socketId).emit("group-call-incoming", {
+          signal: data2,
+          from: currentuser.id,
+          useroncall: currentuser,
+          data:data1,
+        });
+        //io.to(socket.socketId).emit("group-call-incoming",data1.members,currentuser.socketId);
+      }
+       
+    })
+    // if (userToCall) {
+      
+    // }
+    
+   
+  })
+  socket.on("member-call",(data1,data2,member)=>{
+    let currentuser= users.get(socket.id);
+    console.log("member-data",data2.data.members,data1,member)
+
+    let sockets=[];
+    //console.log("cuureeenntuser", currentuser);
+    // for(let i=0;i<data2.data.members.length;i++){
+      const userToCall = Array.from(users.values())
+        .reverse()
+        .find((user) => user.id === member);
+        //console.log("usertocall", userToCall);
+      sockets.push(userToCall)
+    // }
+    console.log("socketsssss", sockets);
+    sockets.forEach((socket)=>{
+      //console.log("socketsforeach",socket);
+      if(socket){
+        io.to(socket.socketId).emit("member-call-incoming", {
+          signal: data1,
+          from: currentuser.id,
+          useroncall: currentuser,
+          data:data2,
+        });
+        console.log("dddddddddddddddddddd",socket);
+        //io.to(socket.socketId).emit("group-call-incoming",data1.members,currentuser.socketId);
+      }
+       
+    })
+  })
 
   socket.on("disconnect", async () => {
     const user = users.get(socket.id);
