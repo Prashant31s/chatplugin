@@ -1463,7 +1463,7 @@ const ChatWindow = (userid) => {
               <div className="mt-4  flex flex-col">
                 <p className="h-[10px]">Call in progress with </p>
                 {groupstreams.map((item, index) => (
-                  <div>
+                  <div key = {index}>
                     <h1>hiii</h1>
                     <audio
                       ref={(audio) => {
