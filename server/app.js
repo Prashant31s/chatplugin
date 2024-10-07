@@ -707,9 +707,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("end-call", (targetUserId, data2) => {
+  socket.on("end-call", (targetUserId, data2,videoid) => {
     let current = users.get(socket.id);
-
+    //data2.videoid= videoid;
     if (data2) {
       targetUserId = targetUserId.userid;
       removeOnCallUser(data2.id, current.id, socket.id);
@@ -722,7 +722,7 @@ io.on("connection", (socket) => {
       });
       
     }
-    console.log("targetuserid", targetUserId, data2);
+    console.log("targetuserid", targetUserId, data2,videoid);
     let usersWithSameParent = [];
     //let callingsockets =[];
 
@@ -748,16 +748,16 @@ io.on("connection", (socket) => {
       io.to(usersWithSameParent[i]).emit(
         "call-list-update",
         socket.id,
-        targetSockets
+        targetSockets,videoid
       );
     }
 
     // Emit to each socketId that satisfies the condition
-    console.log(
-      "ttttttttttaaaaaaaaaaaaarrrgegeee",
-      targetSockets,
-      callingsockets
-    );
+    // console.log(
+    //   "ttttttttttaaaaaaaaaaaaarrrgegeee",
+    //   targetSockets,
+    //   callingsockets
+    // );
 
     for (let i = callingsockets.length - 1; i >= 0; i--) {
       console.log(
@@ -933,6 +933,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join-group-call", async (data1, data2, member) => {
+    callingsockets.push(socket.id);
     let currentuser = users.get(socket.id);
     console.log("member-data", data1, data2, member);
     let usersWithSameParent = [];
@@ -961,9 +962,14 @@ io.on("connection", (socket) => {
       // data1.data=updatedGroup;
       data2.oncall=updatedGroup.oncall;
 
-      const usersWithSameParent = Array.from(users.values())
-      .reverse()
-      .find((user) => user.parentId === currentuser.parentId);
+      //const usersWithSameParent = Array.from(users.values())
+      users.forEach((value, key) => {
+        if (currentuser.parentId === value.parentId) {
+          usersWithSameParent.push(value.socketId);
+        }
+      });
+      // .reverse()
+      // .find((user) => user.parentId === currentuser.parentId);
       for (let i = 0; i < usersWithSameParent.length; i++) {
         //console.log("userswithsame", usersWithSameParent[i]);
         io.to(usersWithSameParent[i]).emit("i am on call", callingsockets,currentuser);
