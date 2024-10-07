@@ -1,37 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-.body {
-  background-color: #333;
-}
+ 
+ 
+ 
 .chatbox h1 {
   text-align: center;
   font-size: 1.5rem;
-  margin-bottom: 1%;
+  margin-bottom: 10px;
   color: white;
 }
-
-/* Messages container */
-.message {
-  
-  overflow-y: auto;
-  padding: 1%;
-  margin-left: 0.3%;
-}
-
-.message ul {
-  list-style-type: none;
-  margin-bottom: 0;
-  margin-left: 0.2%;
-}
-
-.message ul li {
-  background-color: #f0f0f0;
-  padding: 0.5%;
-  margin-bottom: 0.25%;
-  border-radius: 0.25%;
-}
+ 
+/* Message container styling */
 .message-container {
   position: relative;
   background-color: #f0f0f0; /* Or whatever background color you need */
@@ -39,11 +19,11 @@
   padding: 1px; /* Adjust padding as needed */
   border-radius: 4px;
 }
-
+ 
 .message-container:hover .message-actions {
   opacity: 1;
 }
-
+ 
 /* Message styling */
 .message-container p {
   word-wrap: break-word;
@@ -54,8 +34,8 @@
   color: black;
   background-color: #ececec; /* Message background color */
 }
-
-
+ 
+/* Emoji reaction and options buttons */
 .message-actions {
   display: flex;
   gap: 5px; /* Space between buttons */
@@ -65,7 +45,7 @@
   opacity: 0;
   transition: opacity 0.3s ease;
 }
-
+ 
 .emoji-dropdown {
   display: flex;
   gap: 5px;
@@ -75,107 +55,162 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   font-size: 24px;
 }
-
+ 
 .emoji-reaction {
   font-size: 24px;
   cursor: pointer;
   display: none;
  
 }
-
+ 
 .message-container:hover .emoji-reaction {
   display: flex;
 }
-
+ 
 .message-actions button {
   font-size: 10px;
   padding: 3px 5px;
   border-radius: 3px;
 }
-
+ 
 .message-actions button.edit {
   color: black;
   background-color: #e0e0e0; /* Adjust as needed */
 }
-
-
+ 
 .message-actions button.delete {
   color: red;
   background-color: #ffe0e0; /* Adjust as needed */
 }
-
+ 
+/* Custom scrollbar styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f0f0f0;
+}
+ 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+ 
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 50px;
+}
+ 
+.custom-scrollbar::-webkit-scrollbar-track {
+  background-color: #f0f0f0;
+  border-radius: 10px;
+}
+ 
+/* Chat app styles */
+.chat-app {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+ 
+.toggle-chat-button {
+  position: fixed;
+  bottom: 5px;
+  right: 10px;
+  z-index: 1000;
+  background-color: #58b6ef;
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+ 
+.chat-window {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  max-height: 80%;
+  transition: transform 0.3s ease;
+  transform: translateY(100%);
+  z-index: 999;
+}
+ 
+.chat-window.visible {
+  transform: translateY(0);
+}
+ 
+.chat-window-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+ 
+/* Date header styling */
+.date-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0;
+}
+ 
+.date-header-text {
+  background-color: #f0f0f0;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 0.9em;
+  color: #666;
+}
+ 
+/* Editable message styles */
+.editable-message {
+  min-height: 20px;
+  border: 1px solid #ccc;
+  padding: 5px;
+  margin-bottom: 5px;
+}
+ 
+.save-edit-button,
+.cancel-edit-button {
+  margin-right: 5px;
+  padding: 2px 5px;
+  font-size: 12px;
+}
+ 
 .reactions-container {
   display: flex;
   direction: rtl;
-  
-
+ 
   font-size: 10px;
 }
 .reactions-container1 {
   display: flex;
   direction: row-reverse;
- 
   font-size: 10px;
 }
-
-/* Message input form */
-/* .form {
-  display: flex;
-  padding: 0.5%;
-  box-sizing: border-box;
-} */
-
-/* message input */
-/* .input {
-  flex: 1; */
-  /* box-sizing: border-box; */
-  /* align-items: center;
-  vertical-align: middle;
-  
-  padding-left: 3%;
-  padding-right: 2%;
-  font-size: 1rem;
-  margin: 2%;
-  border: 2px solid;
-  border-radius: 25px; */
-/* } */
-
-/* Send message button */
-/* .form button {
-  padding: 1.75%;
-  margin-left: 0.8%;
-  margin-bottom: 0.6%;
-  margin-top: 0.6%;
-  margin-right: 0.8%;
-  box-sizing: border-box;
-  font-size: 1rem;
-  border: 2px solid;
-  border-radius: 25px;
-  background-color: #002244;
-  color: #000;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-} */
-
-.word {
-  white-space: pre-wrap; /* Preserves whitespace and line breaks */
-  /* Uses a monospace font for code */
-  overflow-x: auto; /* Allows horizontal scrolling for long lines of code */
+ 
+.content-editable1 {
+  background-color: #dfe4ff;
+  border: 1px solid #e5e5e5;
 }
-
+.content-editable {
+  box-shadow: none !important;
+  border: none;
+  outline: none;
+}
+ 
+.word {
+  word-wrap: break-word;
+}
+ 
 .preserve-whitespace {
   /* white-space: pre-wrap; Preserves white spaces and line breaks */
   word-wrap: break-word; /* Breaks long words if necessary */
   white-space: break-spaces;
 }
-/* .form button:hover {
-  background-color: #002244;
-} */
-
-.word {
-  word-wrap: break-word;
-}
-
+ 
 .image-viewer-overlay {
   position: fixed;
   inset: 0;
@@ -187,45 +222,169 @@
   height: 100%;
   width: 100%;
 }
+ 
 .image-viewer-container {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 80vh;
   width: 80vw;
+  /* height: 80vh;
+  width: 80vw; */
+  /* position: absolute; */
+  /* flex-direction: column; */
 }
-
+ 
 .image-viewer-img {
   max-height: 90% !important;
   max-width: 90% !important;
   cursor: grab;
+  /* transform-origin: center; */
+  /* max-height: 60% !important; */
+  /* max-width: 60% !important; */
+  /* width: auto !important; */
+  /* height:auto !important; */
+  /* min-height: 0%; */
+  /* transition: transform 0.2s ease-in-out;
+  z-index: 9999; */
+}
+.editing-message {
+  background-color: #e6f7ff;  /* Light blue background for highlighting */
+  border: 1px solid #1890ff;  /* Add a border to make it stand out */
+  box-shadow: 0px 0px 10px rgba(0, 123, 255, 0.3);  /* Optional shadow */
 }
  
+ 
+input[type="text"] {
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 2px solid;
+  border-radius: 4px;
+}
+button[type="submit"] {
+  padding: 10px 20px;
+  background-color: black;
+ 
+  color: white;
+  border: none;
+ 
+  cursor: pointer;
+  font-size: 16px;
+}
+.button {
+  background-color: #04aa6d;
+  border: none;
+  color: white;
+  padding: 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+}
+.button5 {
+  border-radius: 50%;
+}
+ 
+.word {
+  word-wrap: break-word;
+}
+ 
+.input {
+  background-color: #0ee647;
+}
+.chatbox h1 {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  color: black;
+}
+.invisible-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+ 
+.invisible-scrollbar {
+  display: block;
+  width: 10em;
+  overflow: auto;
+  height: 2em;
+  padding: 1em;
+  margin: 1em auto;
+  outline: 2px dashed cornflowerblue;
+}
+ 
+.preserve-whitespace {
+  /* white-space: pre-wrap; Preserves white spaces and line breaks */
+  word-wrap: break-word; /* Breaks long words if necessary */
+  white-space: break-spaces;
+}
+ 
+/* Add this CSS to your global styles or a CSS module */
+.content-editable-link a {
+  color: blue;
+  text-decoration: underline;
+}
+ 
+.content-editable {
+  min-height: 100px;
+  width: 100%;
+  border: 1px solid #ccc;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+ 
+.image-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  height: 100%;
+  width: 100%;
+}
+ 
+.image-viewer-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80vh;
+  width: 80vw;
+  /* height: 80vh;
+  width: 80vw; */
+  /* position: absolute; */
+  /* flex-direction: column; */
+}
+ 
+.image-viewer-img {
+  max-height: 90% !important;
+  max-width: 90% !important;
+  cursor: grab;
+  /* transform-origin: center; */
+  /* max-height: 60% !important; */
+  /* max-width: 60% !important; */
+  /* width: auto !important; */
+  /* height:auto !important; */
+  /* min-height: 0%; */
+  /* transition: transform 0.2s ease-in-out;
+  z-index: 9999; */
+}
 
-
-.custom-scrollbar {
-  /* Width of the scrollbar */
-  
-  scrollbar-width: thin; /* For Firefox */
-  scrollbar-color: #888 #f0f0f0; /* For Firefox */
+.highlighted-message {
+  background-color: yellow;
+  transition: background-color 0.3s ease; /* Smooth highlight */
 }
  
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px; /* Width of the scrollbar */
-  height: 8px; /* Height of the scrollbar (horizontal scrollbar) */
-}
- 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #888; /* Color of the scrollbar thumb */
-  border-radius: 10px; /* Rounding of the scrollbar thumb */
-}
- 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background-color: #f0f0f0; /* Background color of the track */
-  border-radius: 10px; /* Rounding of the track */
-}
- 
-.custom-scrollbar::-webkit-scrollbar-corner {
-  background: transparent; /* No arrows, just the corner */
+button[type="button"] {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  margin-left: 10px;
 }
  
