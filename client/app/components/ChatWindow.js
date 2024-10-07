@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import io from "socket.io-client";
 import Peer from "peerjs";
@@ -115,41 +116,47 @@ const ChatWindow = (userid) => {
   };
   const handleSearch = (e) => {
     e.preventDefault();
-
+   
     if (!searchQuery) {
       setSearchResults([]); // Clear results if the query is empty
       return;
     }
-
+   
     // Get the indices of matched messages in currentMessages
     const results = currentMessages
       .map((msg, index) => {
-        // Check if the message is a text message (not just an image)
-        const isTextMessage = msg.text && !containsImage(msg.text);
-        return isTextMessage && msg.text.toLowerCase().includes(searchQuery.toLowerCase()) ? index : -1;
+        // Extract text content even if the message contains an image
+        const textContent = extractTextContent(msg.text);
+        return textContent.toLowerCase().includes(searchQuery.toLowerCase()) ? index : -1;
       })
       .filter(index => index !== -1);
-
+   
     // Reverse the results to show the latest message first
     const reversedResults = results.reverse();
     setSearchResults(reversedResults); // Store the indices of matched messages
     setCurrentSearchIndex(0);  // Start from the first matched message (which is now the latest)
-
+   
     // If there are results, scroll to the first matched message (latest one)
     if (reversedResults.length > 0) {
       scrollToMessage(reversedResults[0]); // Scroll to the first matched message (latest)
     }
   };
-
-
-  // Function to check if the message contains base64 or <img> tags
-  const containsImage = (text) => {
-    // Check for base64 image data or <img> tags
-    const base64Pattern = /data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/;
-    const imgTagPattern = /<img\s[^>]*>/;
-    return base64Pattern.test(text) || imgTagPattern.test(text);
+   
+   
+  // Function to extract text content from a message, even if it contains an image
+  const extractTextContent = (text) => {
+    if (!text) return '';
+   
+    // Remove base64 image data
+    const withoutBase64 = text.replace(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/g, '');
+   
+    // Remove <img> tags
+    const withoutImgTags = withoutBase64.replace(/<img\s[^>]*>/g, '');
+   
+    // Trim any resulting whitespace
+    return withoutImgTags.trim();
   };
-
+   
 
 
   const goToNextResult = () => {
@@ -729,7 +736,7 @@ const ChatWindow = (userid) => {
     socket.on("check-call", handlecheckcall);
 
     socket.on("i am on call", (callingsockets,currentuser,data2) => {
-      //console.log("i am oncall", callingsockets[0], callingsockets[1],currentuser,data2,groups);
+      console.log("i am oncall", callingsockets[0], callingsockets[1],currentuser,data2,groups);
       if(data2){
         for(let i=0;i<groups.length;i++){
           if(groups[i].id===data2.id){
@@ -737,7 +744,7 @@ const ChatWindow = (userid) => {
             console.log("groupsname", groups[i].name);
           }
         }
-      }
+      } 
       
       for (let i = 0; i < callingsockets.length; i++) {
         setUsersOnCall((prevusersoncall) => [
@@ -753,19 +760,24 @@ const ChatWindow = (userid) => {
     peer.on("call", handleIncomingPeerCall);
 
     return () => {
+      socket.off("user list");
+      socket.off("sub-employee joined");
+      socket.off("group updated")
+      socket.off("removed from group");
+      socket.off("user removed from group")
       socket.off("chat message", handleMessage);
       socket.off("login successful");
       socket.off("login failed");
-      socket.off("user list");
+      
       socket.off("user joined");
       socket.off("user left");
       socket.off("group created");
       socket.off("group list", handlegrouplist);
-      socket.off("sub-employee joined");
+      
       socket.off("incoming-call", handleIncomingCall);
       socket.off("call-ended", handleCallEnded);
       socket.off("check-call", handlecheckcall);
-      socket.off("removed from group");
+      
       socket.off("i am on call");
       socket.off("group-call-incoming", handlegroupincomingcall);
       socket.off("member-call-incoming", handlemembercallincoming);
@@ -780,7 +792,7 @@ const ChatWindow = (userid) => {
     userId,
     usersNotInSelectedGroup,
     incominggroupcall,
-    useroncall,groups
+    useroncall,groups,groupstreams
   ]);
 
   // useEffect(()=>{
@@ -918,6 +930,9 @@ const ChatWindow = (userid) => {
   const endCall = useCallback(() => {
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
+      
+    }
+    if(localStreamRef.current){
       localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     setLocalStream(null);
@@ -933,8 +948,8 @@ const ChatWindow = (userid) => {
   }, [localStream, socket, useroncall, remoteStream, localStreamRef]);
 
   const handleCallEnded = useCallback(
-    (data1, data2) => {
-      console.log("selecteduser call ended", data1, data2, userid, socket.id);
+    (data1, data2,videoid) => {
+      //console.log("selecteduser call ended", data1, data2,vi);
       if (data2 && socket.id === data1) {
         if (localStream) {
           localStream.getTracks().forEach((track) => track.stop());
@@ -950,6 +965,9 @@ const ChatWindow = (userid) => {
       } else if (!data2) {
         if (localStream) {
           localStream.getTracks().forEach((track) => track.stop());
+          
+        }
+        if(localStreamRef&&localStreamRef.current){
           localStreamRef.getTracks().forEach((track) => track.stop());
         }
         if (remoteStream) {
@@ -968,7 +986,7 @@ const ChatWindow = (userid) => {
       }
       //setUserOnCall(null);
     },
-    [localStream, remoteStream, userid, socket,isCallActive, localStreamRef]
+    [localStream, remoteStream, userid, socket,isCallActive, localStreamRef,groupstreams]
   );
 
   const startGroupCall = useCallback(async () => {
@@ -1183,6 +1201,8 @@ const ChatWindow = (userid) => {
   }, [socket]);
 
   const endgroupCall = useCallback(() => {
+    let targetuserid = userid;
+    socket.emit("end-call", targetuserid, oncallgroup, localStreamRef.current.id);
     setOnGroupCall(false);
     console.log("ended-groupcall");
     if (localStream) {
@@ -1194,8 +1214,8 @@ const ChatWindow = (userid) => {
     setIsCallActive(false);
     setGroupStreams([]);
     localStreamRef.current=null;
-    let targetuserid = userid;
-    socket.emit("end-call", targetuserid, oncallgroup);
+    
+    
     //socket.emit("end-call", useroncall.id);
     //console.log("select",selectedUser);
     //setUserOnCall(null);
@@ -1230,7 +1250,17 @@ const ChatWindow = (userid) => {
     [isCallActive]
   );
 
-  const handlecalllistupdate = (data1, data2) => {
+  const handlecalllistupdate = (data1, data2,videoid) => {
+    console.log("videoid", videoid, groupstreams);
+    if(groupstreams.length){
+      for(let i=0;i<groupstreams.length;i++){
+        console.log("gggggggggggggggggggggg", groupstreams[i], groupstreams[i].id)
+        if(groupstreams[i].id==videoid){
+          groupstreams.splice(i,1)
+        }
+      }
+    }
+   
     setUsersOnCall((prevusersoncall) =>
       prevusersoncall.filter((usersoncall) => usersoncall !== data1)
     );
@@ -2013,4 +2043,6 @@ const ChatWindow = (userid) => {
 };
 
 export default ChatWindow;
+
+
 
