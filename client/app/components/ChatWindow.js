@@ -54,13 +54,147 @@ const ChatWindow = (userid) => {
   const [imageDragging, setImageDragging] = useState(false);
   const [usersoncall, setUsersOnCall] = useState([]);
   const [incominggroupcall, setIncomingGroupCall] = useState();
-  const [ongroupcall,setOnGroupCall]= useState(false);
+  const [ongroupcall, setOnGroupCall] = useState(false);
   const [groupdata, setGroupData] = useState();
+  const [oncallgroup, setOnCallGroup] = useState();
+
+  const [searchQuery, setSearchQuery] = useState(""); // Search query
+  const [searchResults, setSearchResults] = useState([]); // Array to hold matched message indices
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0); // Currently displayed search result
+  const [filteredMessages, setFilteredMessages] = useState([]); // To display only search result messages
+  const [userSearchQuery, setUserSearchQuery] = useState(""); // Search query for users
+  const [groupSearchQuery, setGroupSearchQuery] = useState(""); // Search query for groups
+  const isCallActiveRef = useRef(isCallActive);
+  const localStreamRef= useRef(localStream);
+
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return 'N/A';
+    const date = new Date(dateValue);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  };
+
+  const formatTime = (dateValue) => {
+    if (!dateValue) return 'N/A';
+    const date = new Date(dateValue);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const shouldShowDateHeader = (currentMsg, prevMsg) => {
+    if (!prevMsg) return true;
+    const currentDate = new Date(currentMsg.createdAt).toDateString();
+    const prevDate = new Date(prevMsg.createdAt).toDateString();
+    return currentDate !== prevDate;
+  };
+
+
+
+  const filteredUsers = users.filter((user) =>
+    user.username.toLowerCase().includes(userSearchQuery.toLowerCase())
+  );
+
+  const filteredGroups = groups.filter((group) =>
+    group.name.toLowerCase().includes(groupSearchQuery.toLowerCase())
+  );
+
+  const clearSearch = () => {
+    setSearchQuery("");           // Clear the search input
+    setSearchResults([]);         // Clear the search results
+    setCurrentSearchIndex(0);     // Reset the search index
+    setFilteredMessages([]);      // Reset filtered messages
+  };
+  const handleSearch = (e) => {
+    e.preventDefault();
+
+    if (!searchQuery) {
+      setSearchResults([]); // Clear results if the query is empty
+      return;
+    }
+
+    // Get the indices of matched messages in currentMessages
+    const results = currentMessages
+      .map((msg, index) => {
+        // Check if the message is a text message (not just an image)
+        const isTextMessage = msg.text && !containsImage(msg.text);
+        return isTextMessage && msg.text.toLowerCase().includes(searchQuery.toLowerCase()) ? index : -1;
+      })
+      .filter(index => index !== -1);
+
+    // Reverse the results to show the latest message first
+    const reversedResults = results.reverse();
+    setSearchResults(reversedResults); // Store the indices of matched messages
+    setCurrentSearchIndex(0);  // Start from the first matched message (which is now the latest)
+
+    // If there are results, scroll to the first matched message (latest one)
+    if (reversedResults.length > 0) {
+      scrollToMessage(reversedResults[0]); // Scroll to the first matched message (latest)
+    }
+  };
+
+
+  // Function to check if the message contains base64 or <img> tags
+  const containsImage = (text) => {
+    // Check for base64 image data or <img> tags
+    const base64Pattern = /data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/;
+    const imgTagPattern = /<img\s[^>]*>/;
+    return base64Pattern.test(text) || imgTagPattern.test(text);
+  };
+
+
+
+  const goToNextResult = () => {
+    if (searchResults.length > 0) {
+      const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+      setCurrentSearchIndex(nextIndex);
+      const nextMessageIndex = searchResults[nextIndex];
+      setFilteredMessages([currentMessages[nextMessageIndex]]); // Display the next matched message
+      scrollToMessage(nextMessageIndex);
+    }
+  };
+
+  const goToPreviousResult = () => {
+    if (searchResults.length > 0) {
+      const prevIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+      setCurrentSearchIndex(prevIndex);
+      const prevMessageIndex = searchResults[prevIndex];
+      setFilteredMessages([currentMessages[prevMessageIndex]]); // Display the previous matched message
+      scrollToMessage(prevMessageIndex);
+    }
+  };
+
+
+
+  const scrollToMessage = (index) => {
+    const messageElement = document.getElementById(`message-${index}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  };
+  useEffect(() => {
+ 
+    setSearchQuery("");    
+    setSearchResults([]);      
+    setCurrentSearchIndex(0);    
+    setFilteredMessages([]);      
+}, [selectedUser, selectedGroup]);
 
   useEffect(() => {
     //console.log("1")
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
-    console.log("Mobile", isMobile);
+    //console.log("Mobile", isMobile);
     setMaxZoom(isMobile ? 10 : 2);
   }, []);
 
@@ -588,16 +722,23 @@ const ChatWindow = (userid) => {
     socket.on("group created", (group) =>
       setGroups((prevGroups) => [...prevGroups, group])
     );
-    socket.on("group list", setGroups);
+    socket.on("group list", handlegrouplist);
 
     socket.on("incoming-call", handleIncomingCall);
     socket.on("call-ended", handleCallEnded);
     socket.on("check-call", handlecheckcall);
 
-    peer.on("call", handleIncomingPeerCall);
-
-    socket.on("i am on call", (callingsockets) => {
-      console.log("data", callingsockets[0], callingsockets[1]);
+    socket.on("i am on call", (callingsockets,currentuser,data2) => {
+      //console.log("i am oncall", callingsockets[0], callingsockets[1],currentuser,data2,groups);
+      if(data2){
+        for(let i=0;i<groups.length;i++){
+          if(groups[i].id===data2.id){
+            groups[i].oncall.push(currentuser.id);
+            console.log("groupsname", groups[i].name);
+          }
+        }
+      }
+      
       for (let i = 0; i < callingsockets.length; i++) {
         setUsersOnCall((prevusersoncall) => [
           ...prevusersoncall,
@@ -606,10 +747,10 @@ const ChatWindow = (userid) => {
       }
     });
 
-    socket.on("call-list-update", handlecalllistupdate);
-
     socket.on("group-call-incoming", handlegroupincomingcall);
     socket.on("member-call-incoming", handlemembercallincoming);
+    socket.on("call-list-update", handlecalllistupdate);
+    peer.on("call", handleIncomingPeerCall);
 
     return () => {
       socket.off("chat message", handleMessage);
@@ -619,7 +760,7 @@ const ChatWindow = (userid) => {
       socket.off("user joined");
       socket.off("user left");
       socket.off("group created");
-      socket.off("group list");
+      socket.off("group list", handlegrouplist);
       socket.off("sub-employee joined");
       socket.off("incoming-call", handleIncomingCall);
       socket.off("call-ended", handleCallEnded);
@@ -639,6 +780,7 @@ const ChatWindow = (userid) => {
     userId,
     usersNotInSelectedGroup,
     incominggroupcall,
+    useroncall,groups
   ]);
 
   // useEffect(()=>{
@@ -655,6 +797,7 @@ const ChatWindow = (userid) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
+      localStreamRef.current=stream
 
       const call = peer.call(selectedUser.id, stream);
       //call.on("stream", handleStream);
@@ -669,32 +812,72 @@ const ChatWindow = (userid) => {
       console.error("Error starting call:", error);
     }
   }, [selectedUser, socket, myId, peer, useroncall]);
+  // useEffect(()=>{
+  //   console.log("localstreamref", localStreamRef.current);
+  // }, [localStreamRef,localStream])
 
   const handleIncomingCall = useCallback(
     (data) => {
-      console.log("incomingcall", data);
-      if (useroncall || localStream) {
-        socket.emit("user-in-call");
-        return;
-      }
+      console.log("incomingcall", data,localStreamRef.current);
+      //if (useroncall ) {
+        
+        console.log("ussssssssssssssssscall", localStream, useroncall);
+        //socket.emit("user-in-call");
+        //return;
+      //}
       setIncomingCall(data);
       setUserOnCall(data.useroncall);
     },
     [useroncall, localStream, socket]
   );
 
-  const handleIncomingPeerCall = useCallback(async (call) => {
-    console.log("handleincomingpeercall");
+  const handlegrouplist = (data) => {
+    //console.log("group-listtttt", data);
+    setGroups(data);
+    if (selectedGroup) {
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].id === selectedGroup.id) {
+          selectedGroup.oncall = data[i].oncall;
+        }
+      }
+    }
+  };
+  const getmediastream = useCallback(async () => {
+    console.log("getmediastream", localStream);
+    if (localStream) {
+      return localStream;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
-      call.answer(stream);
-      call.on("stream", handleStream);
-      setIsCallActive(true);
+      return stream;
     } catch (error) {
       console.error("Error accepting call:", error);
     }
   }, []);
+
+  const handleIncomingPeerCall = useCallback(async (call) => {
+    console.log("handleincomingpeercall");
+    if(localStreamRef.current){
+      setLocalStream(localStreamRef.current);
+      // setLocalStream(stream);
+      call.answer(localStreamRef.current);
+      call.on("stream", handleStream);
+      setIsCallActive(true);
+    }
+    else{
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setLocalStream(stream);
+        call.answer(stream);
+        call.on("stream", handleStream);
+        setIsCallActive(true);
+      } catch (error) {
+        console.error("Error accepting call:", error);
+      }
+    }
+    
+  }, [localStreamRef]);
 
   const acceptCall = useCallback(async () => {
     console.log("acceptcalll");
@@ -718,7 +901,7 @@ const ChatWindow = (userid) => {
       // if(incominggroupcall){
       //   return ;
       // }
-      console.log("handlestream", remoteStream);
+      // console.log("handlestream", remoteStream);
       setGroupStreams((prevgroupstreams) => [
         ...prevgroupstreams,
         remoteStream,
@@ -729,128 +912,193 @@ const ChatWindow = (userid) => {
   );
 
   useEffect(() => {
-    console.log("groupstreams", groupstreams);
-  }, [groupstreams]);
+    console.log("groupstreams", groupstreams, localStream,localStreamRef.current);
+  }, [groupstreams, localStream,localStreamRef]);
 
   const endCall = useCallback(() => {
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     setLocalStream(null);
     setRemoteStream(null);
     setGroupStreams([]);
     setIsCallActive(false);
+    localStreamRef.current=null;
+    
 
     socket.emit("end-call", useroncall.id);
     //console.log("select",selectedUser);
     //setUserOnCall(null);
-  }, [localStream, socket, useroncall]);
+  }, [localStream, socket, useroncall, remoteStream, localStreamRef]);
 
-  const handleCallEnded = useCallback(() => {
-    //console.log("selecteduser", selectedUser);
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
-    }
-    if (remoteStream) {
-      remoteStream.getTracks().forEach((track) => track.stop());
-    }
-
-    setLocalStream(null);
-    setRemoteStream(null);
-    setIsCallActive(false);
-    setIncomingCall(null);
-    setGroupStreams([]);
-    //setUserOnCall(null);
-  }, [localStream, remoteStream]);
+  const handleCallEnded = useCallback(
+    (data1, data2) => {
+      console.log("selecteduser call ended", data1, data2, userid, socket.id);
+      if (data2 && socket.id === data1) {
+        if (localStream) {
+          localStream.getTracks().forEach((track) => track.stop());
+        }
+        if (remoteStream) {
+          remoteStream.getTracks().forEach((track) => track.stop());
+        }
+        localStreamRef.current=null;
+        setLocalStream(null);
+        setRemoteStream(null);
+        setIsCallActive(false);
+        setGroupStreams([]);
+      } else if (!data2) {
+        if (localStream) {
+          localStream.getTracks().forEach((track) => track.stop());
+          localStreamRef.getTracks().forEach((track) => track.stop());
+        }
+        if (remoteStream) {
+          remoteStream.getTracks().forEach((track) => track.stop());
+        }
+        setLocalStream(null);
+        setRemoteStream(null);
+        setIsCallActive(false);
+        setGroupStreams([]);
+      }
+      if (data2) {
+        //setGroupStreams([]);
+        setIncomingGroupCall(null);
+      } else {
+        setIncomingCall(null);
+      }
+      //setUserOnCall(null);
+    },
+    [localStream, remoteStream, userid, socket,isCallActive, localStreamRef]
+  );
 
   const startGroupCall = useCallback(async () => {
+    //console.log("seleceted-groupppppppp", selectedGroup);
     //check()
-    console.log("started-call");
+    //console.log("started-call");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setLocalStream(stream);
+      let stream;
+      console.log("startvcallreffff", localStreamRef.current)
+      if (localStreamRef.current) {
+        stream = localStreamRef.current;
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setLocalStream(stream);
+        localStreamRef.current=stream
+
+      }
       console.log("group-details", selectedGroup.members);
       for (let i = 0; i < selectedGroup.members.length; i++) {
-        const call = peer.call(selectedGroup.members[i], stream);
-        console.log("startgroupcall handlestream");
-        call.on("stream", handleStream);
+        console.log("startgroupcall handlestream", selectedGroup.members[i]);
+        if (selectedGroup.members[i] != userid) {
+          const call = peer.call(selectedGroup.members[i], stream);
+
+          call.on("stream", handleStream);
+        }
       }
 
-      console.log("group-call");
+      //console.log("group-call");
       socket.emit("group-call", selectedGroup, myId);
       // socket.emit("call-user", {
       //   useroncall: useroncall,
       //   signalData: myId,
       // });
 
+      setOnCallGroup(selectedGroup);
       setIsCallActive(true);
       setOnGroupCall(true);
     } catch (error) {
       console.error("Error starting call:", error);
     }
-  }, [selectedGroup, socket, myId, peer, useroncall]);
-
-  const handlegroupincomingcall = useCallback(
-    (data) => {
-      console.log("groupincomingcall", data.data.members, data.from);
-      setGroupData(data);
-      // if (useroncall || localStream) {
-      //   socket.emit("user-in-call");
-      //   return;
-      // }
-      setIncomingGroupCall(data);
-      setUserOnCall(data.useroncall);
-      if (localStream) {
-        console.log("datalocalstream", localStream);
-        data.data.members.forEach((member) => {
-          const call = peer.call(member, localStream);
-          call.on("stream", (remoteStream) => {
-            console.log("handlegroupincomingcall handlestream");
-            handleStream(remoteStream);
+  }, [selectedGroup, socket, myId, peer, useroncall, localStream,localStreamRef]);
+    const checkcallactive= ()=>{
+      console.log("checkcaaaaaaaaaaalaaccitbe0", isCallActive);
+      return isCallActiveRef.current
+      //return isCallActive;
+    }
+  
+    const handlegroupincomingcall = useCallback(
+      (data) => {
+        console.log(
+          "groupincomingcall",
+          data.data.members,
+          data.from,
+          isCallActive,
+          remoteStream
+        );
+        setGroupData(data);
+        console.log("incoming data", data);
+        const check = checkcallactive();
+        if (check) {
+          console.log("responseiscallactive",check)
+          return;
+        }
+        
+        // if (useroncall || localStream) {
+        //   socket.emit("user-in-call");
+        //   return;
+        // }
+        setIncomingGroupCall(data);
+        setUserOnCall(data.useroncall);
+        console.log("incoming calllllreeeed", localStreamRef.current)
+        if (localStream) {
+          //console.log("datalocalstream", localStream);
+          data.data.members.forEach((member) => {
+            const call = peer.call(member, localStreamRef.current);
+            call.on("stream", (remoteStream) => {
+              //console.log("handlegroupincomingcall handlestream");
+              handleStream(remoteStream);
+            });
           });
-        });
-      }
+        }
 
-      // data.members.forEach((member) => {
-      //   const call = peer.call(member, localStream);
-      //   call.on("stream", (remoteStream) => {
-      //     handleStream(remoteStream);
-      //   });
-      // });
-    },
-    [useroncall, localStream, socket]
-  );
+        // data.members.forEach((member) => {
+        //   const call = peer.call(member, localStream);
+        //   call.on("stream", (remoteStream) => {
+        //     handleStream(remoteStream);
+        //   });
+        // });
+      },
+      [useroncall, localStream, socket, incominggroupcall,checkcallactive,isCallActive,groupdata,localStreamRef]
+    );
 
   const acceptgroupCall = useCallback(async () => {
     console.log("acceptgroupcalll");
+    //setgrouponcall(groupdata);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
+      localStreamRef.current=stream
 
-      const call = peer.call(incominggroupcall.signal, stream);
+      const call = peer.call(incominggroupcall.signal, localStreamRef.current);
       call.on("stream", handleStream);
-      console.log("prevgroupdata", groupdata);
+      //console.log("prevgroupdata", groupdata);
+      socket.emit("answer-call", {
+        signal: myId,
+        to: incominggroupcall.from,
+        groupcall: true,
+      });
 
       groupdata.data.members.forEach((member) => {
-        console.log("groupdata", member, groupdata.from);
-        if (groupdata.from != member) {
-          const call = peer.call(member, stream);
-          console.log("acceptgroupcall handlestream")
+        console.log("groupdatassssssssss", member);
+        if (groupdata.from != member && member != userid.userid) {
+          //console.log("groupdatassssssssssffeferr", member,userid.userid);
+          const call = peer.call(member, localStreamRef.current);
+          // console.log("acceptgroupcall handlestream");
           call.on("stream", handleStream);
           //socket.emit("member-call", { signal: myId, to: groupdata.from });
-          socket.emit("member-call", myId, groupdata,member);
+          socket.emit("member-call", myId, groupdata, member);
         }
       });
-      
 
-      socket.emit("answer-call", { signal: myId, to: incominggroupcall.from, groupcall:true});
+      
       setIsCallActive(true);
+      setOnCallGroup(groupdata.data);
       setIncomingGroupCall(null);
       setOnGroupCall(true);
     } catch (error) {
       console.error("Error accepting call:", error);
     }
-  }, [incominggroupcall, socket, myId, peer]);
+  }, [incominggroupcall, socket, myId, peer, userid, localStream,localStreamRef]);
 
   //const handlemembercallincoming
 
@@ -859,10 +1107,11 @@ const ChatWindow = (userid) => {
       //if(localStream){
 
       //}
+
       console.log(
         "incominggroupcall at function start:",
         incominggroupcall,
-        groupstreams
+        groupstreams,localStreamRef.current
       );
       if (incominggroupcall) {
         console.log("returnedddddddddddddddddd");
@@ -873,14 +1122,15 @@ const ChatWindow = (userid) => {
       try {
         //setLocalStream(stream);
         if (!incominggroupcall) {
-          if (localStream) {
-            const call = peer.call(data.signal, localStream);
+          if (localStream||localStreamRef.current) {
+            const call = peer.call(data.signal, localStreamRef.current);
             console.log("handlemembercallincoming handlestream", groupstreams);
             call.on("stream", handleStream);
           } else {
             const stream = await navigator.mediaDevices.getUserMedia({
               audio: true,
             });
+            localStreamRef.current=stream
             const call = peer.call(data.signal, stream);
             console.log("handlemembercallincoming handlestream", groupstreams);
             call.on("stream", handleStream);
@@ -890,28 +1140,71 @@ const ChatWindow = (userid) => {
         console.error("Error accepting call:", error);
       }
     },
-    [useroncall, localStream, socket, peer, incominggroupcall]
+    [useroncall, localStream, socket, peer, incominggroupcall,localStreamRef,groupstreams]
   );
+
+  const joinGroupCall = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      //setLocalStream(stream);
+      localStreamRef.current=stream
+      //console.log("prevgroupdata", groupdata);
+
+      selectedGroup.oncall.forEach((member) => {
+        console.log("sssssssselle", selectedGroup)
+        console.log("groupdata", member);
+        // if (groupdata.from != member) {
+        const call = peer.call(member, stream);
+        call.on("stream", handleStream);
+        //socket.emit("member-call", { signal: myId, to: groupdata.from });
+        //socket.emit("member-call", myId, selectedGroup, member);
+        socket.emit("join-group-call", myId, selectedGroup, member);
+        // }
+      });
+
+      // socket.emit("answer-call", {
+      //   signal: myId,
+      //   to: incominggroupcall.from,
+      //   groupcall: true,
+      // });
+      //setGroupData(selectedGroup);
+      setOnCallGroup(selectedGroup);
+      setIsCallActive(true);
+      setIncomingGroupCall(null);
+      setOnGroupCall(true);
+    } catch (error) {
+      console.error("Error accepting call:", error);
+    }
+  }, [peer, socket, , selectedGroup, localStream,localStreamRef.current]);
+
   const groupcalldeclined = useCallback(() => {
+    socket.emit ("group-call-declined");
     setIncomingGroupCall(null);
-  }, []);
+  }, [socket]);
 
   const endgroupCall = useCallback(() => {
     setOnGroupCall(false);
     console.log("ended-groupcall");
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     setLocalStream(null);
     setRemoteStream(null);
     setIsCallActive(false);
     setGroupStreams([]);
-    let targetuserid= userid;
-    socket.emit("end-call",targetuserid,true);
+    localStreamRef.current=null;
+    let targetuserid = userid;
+    socket.emit("end-call", targetuserid, oncallgroup);
     //socket.emit("end-call", useroncall.id);
     //console.log("select",selectedUser);
     //setUserOnCall(null);
-  }, [localStream, socket, useroncall]);
+  }, [localStream, socket, useroncall,remoteStream, localStreamRef]);
+
+  // useEffect(()=>{
+  //   console.log("iscallactive", isCallActive);
+
+  // },[isCallActive])
 
   // const check=()=>{
   //   socket.emit("check-available",{
@@ -938,7 +1231,6 @@ const ChatWindow = (userid) => {
   );
 
   const handlecalllistupdate = (data1, data2) => {
-    console.log("dadaaadadaataaaaa", data1, data2);
     setUsersOnCall((prevusersoncall) =>
       prevusersoncall.filter((usersoncall) => usersoncall !== data1)
     );
@@ -964,23 +1256,36 @@ const ChatWindow = (userid) => {
   // Update the removeUserFromGroup function
   const removeUserFromGroup = useCallback(
     (userIdToRemove) => {
-      if (socket && selectedGroup) {
-        socket.emit("remove from group", {
-          groupId: selectedGroup.id,
-          userId: userIdToRemove,
-        });
-        if (userIdToRemove === userId) {
-          // If the user is removing themselves, update the UI immediately
-          setGroups((prevGroups) =>
-            prevGroups.filter((group) => group.id !== selectedGroup.id)
-          );
-          setSelectedGroup(null);
-          setActiveChat("private");
+        if (socket && selectedGroup) {
+            // Emit the socket event to remove the user from the group
+            socket.emit("remove from group", {
+                groupId: selectedGroup.id,
+                userId: userIdToRemove,
+            });
+ 
+            // Immediately update the local state for real-time update
+            setUsersInSelectedGroup((prevUsers) =>
+                prevUsers.filter((user) => user.id !== userIdToRemove)
+            );
+ 
+            setUsersNotInSelectedGroup((prevUsers) => [
+                ...prevUsers,
+                // Assuming you have access to the user details here, add them back to the "add user" list
+                users.find((user) => user.id === userIdToRemove),
+            ]);
+ 
+            if (userIdToRemove === userId) {
+                // If the user is removing themselves, update the UI immediately
+                setGroups((prevGroups) =>
+                    prevGroups.filter((group) => group.id !== selectedGroup.id)
+                );
+                setSelectedGroup(null);
+                setActiveChat("private");
+            }
         }
-      }
     },
-    [socket, selectedGroup, userId]
-  );
+    [socket, selectedGroup, userId, users]
+);
 
   const getChatId = (user1, user2) => {
     return [user1, user2].sort().join("-");
@@ -1045,7 +1350,7 @@ const ChatWindow = (userid) => {
   };
 
   const selectGroup = (group) => {
-    console.log("selectedgroup", group);
+    //console.log("selectedgroup", group);
     setSelectedGroup(group);
     setActiveChat("group");
     setSelectedUser(null);
@@ -1316,9 +1621,16 @@ const ChatWindow = (userid) => {
           {activeChat === "private" && (
             <div>
               <h2 className="text-lg font-semibold mb-2">Users</h2>
+              <input
+                type="text"
+                placeholder="Search Users"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                className="mb-2 p-2 border rounded"
+              />
               <div className="h-64 border rounded p-2 overflow-y-auto">
-                {users
-                  .filter((user) => user.id !== userId)
+                {filteredUsers
+                  .filter((user) => user.id !== userId) // Exclude logged-in user
                   .map((user) => (
                     <div
                       key={user.id}
@@ -1339,8 +1651,15 @@ const ChatWindow = (userid) => {
           {activeChat === "group" && (
             <div>
               <h2 className="text-lg font-semibold mb-2">Groups</h2>
+              <input
+                type="text"
+                placeholder="Search Groups"
+                value={groupSearchQuery}
+                onChange={(e) => setGroupSearchQuery(e.target.value)}
+                className="mb-2 p-2 border rounded"
+              />
               <div className="h-48 border rounded p-2 mb-2 overflow-y-auto">
-                {groups.map((group) => (
+                {filteredGroups.map((group) => (
                   <div
                     key={group.id}
                     className={`p-2 cursor-pointer hover:bg-gray-100 ${
@@ -1384,10 +1703,10 @@ const ChatWindow = (userid) => {
               {activeChat === "private" && selectedUser
                 ? `Chat with ${selectedUser.username}`
                 : activeChat === "group" && selectedGroup
-                ? `Group: ${selectedGroup.name}`
-                : activeChat === "employer"
-                ? "Employer Room"
-                : "Select a user, group, or room to chat"}
+                  ? `Group: ${selectedGroup.name}`
+                  : activeChat === "employer"
+                    ? "Employer Room"
+                    : "Select a user, group, or room to chat"}
             </h2>
 
             <div className="mt-4">
@@ -1406,43 +1725,41 @@ const ChatWindow = (userid) => {
                     </button>
                   )
                 ) : selectedGroup ? (
-                  // usersoncall.includes(String(selectedUser.socketId)) ? (
-                  //   <p className="text-red-500">
-                  //     User is not available for call
-                  //   </p>
-                  // ) : (
-                  <button
-                    onClick={startGroupCall}
-                    className="bg-green-500 text-white px-4 py-2 rounded mr-2"
-                  >
-                    start group Call
-                  </button>
+
+                  selectedGroup.oncall.length ? (
+                    <button onClick={joinGroupCall}>
+                      join call {selectedGroup.name}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={startGroupCall}
+                      className="bg-green-500 text-white px-4 py-2 rounded mr-2"
+                    >
+                      start group Call
+                    </button>
+                  )
                 ) : (
-                  //)
                   <h>no user selected</h>
                 )
               ) : (
                 <>
-                {
-                useroncall &&!ongroupcall&& (
-                  <button
-                    onClick={endCall}
-                    className="bg-red-500 text-white px-4 py-2 rounded"
-                  >
-                    End Call
-                  </button>
-                )
-                }
-                {ongroupcall &&(
-                  <button
-                    onClick={endgroupCall}
-                    className="bg-red-500 text-white px-4 py-2 rounded"
-                  >
-                    End Group Call
-                  </button>
-                )}
+                  {useroncall && !ongroupcall && (
+                    <button
+                      onClick={endCall}
+                      className="bg-red-500 text-white px-4 py-2 rounded"
+                    >
+                      End Call
+                    </button>
+                  )}
+                  {ongroupcall && (
+                    <button
+                      onClick={endgroupCall}
+                      className="bg-red-500 text-white px-4 py-2 rounded"
+                    >
+                      End Group Call
+                    </button>
+                  )}
                 </>
-                
               )}
             </div>
 
@@ -1463,7 +1780,7 @@ const ChatWindow = (userid) => {
               <div className="mt-4  flex flex-col">
                 <p className="h-[10px]">Call in progress with </p>
                 {groupstreams.map((item, index) => (
-                  <div key = {index}>
+                  <div key={index}>
                     <h1>hiii</h1>
                     <audio
                       ref={(audio) => {
@@ -1479,24 +1796,30 @@ const ChatWindow = (userid) => {
             )}
           </div>
 
-          <div className="flex-grow mb-4 border rounded p-2 overflow-y-auto">
+          <div className=" flex flex-grow flex-col mb-4 border rounded p-2 overflow-auto custom-scrollbar">
             {currentMessages.map((message, index) => (
-              <div
-                key={index}
-                className={`mb-2 ${
-                  message.sender === userId ? "text-right" : "text-left"
-                }`}
-              >
-                <span className="font-bold ">
-                  {message.sender === userId
-                    ? "You"
-                    : users.find((u) => u.id === message.sender)?.username}
-                  :
-                </span>{" "}
-                <span className="bg-white text-black pl-2 pr-3 py-1 preserve-whitespace h-auto">
-                  {renderMessage(message.text, message.images)}
-                </span>
-              </div>
+              <React.Fragment key={index}>
+                {shouldShowDateHeader(message, currentMessages[index - 1]) && (
+                  <div className="text-center my-2">
+                    <span className="bg-gray-200 text-time px-2 py-1 rounded-full text-[10px]">
+                      {formatDate(message.createdAt)}
+                    </span>
+                  </div>
+                )}
+                <div
+                  key={index}
+                  id={`message-${index}`} // Assign unique id for scrolling
+                  className={`mb-2 ${message.sender === userId ? "text-right" : "text-left"}
+        ${currentSearchIndex === searchResults.indexOf(index) ? "highlighted-message" : ""}`} // Add highlighted class
+                >
+                  <span className="font-bold ">
+                    {message.sender === userId ? "You" : users.find((u) => u.id === message.sender)?.username}:
+                  </span>{" "} <span>{formatTime(message.createdAt)}</span>
+                  <span className="bg-white text-black pl-2 pr-3 py-1 preserve-whitespace h-auto">
+                    {renderMessage(message.text, message.images)}
+                  </span>
+                </div>
+              </React.Fragment>
             ))}
           </div>
 
@@ -1551,6 +1874,54 @@ const ChatWindow = (userid) => {
                 </button>
               </div>
             </form>
+            <div className="search-bar">
+              <form onSubmit={handleSearch}>
+                <input
+                  type="text"
+                  placeholder="Search messages"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button type="submit">Search</button>
+
+                {/* Close button to clear search */}
+                {searchResults.length > 0 && (
+                  <button type="button" onClick={clearSearch} title="Clear Search">✖</button>
+                )}
+              </form>
+
+              {searchResults.length > 0 && (
+                <div>
+                  <button onClick={goToPreviousResult}>Previous</button>
+                  <span> {currentSearchIndex + 1}/{searchResults.length} </span>
+                  <button onClick={goToNextResult}>Next</button>
+                </div>
+              )}
+            </div>
+
+            {/* <div className="messages">
+              {filteredMessages.map((message, index) => {
+                const isMatched = searchResults.includes(index);
+                const isHighlighted = currentSearchIndex === searchResults.indexOf(index);
+
+                return isMatched ? (
+                  <div
+                    key={index}
+                    id={`message-${index}`} // Unique ID for scrolling
+                    className={`mb-2 ${isHighlighted ? 'highlighted-message' : ''}`}
+                    onClick={() => scrollToMessage(index)} // Scroll to the original message
+                  >
+                    <span className="font-bold ">
+                      {message.sender === userId ? "You" : users.find((u) => u.id === message.sender)?.username}:
+                    </span>{" "}
+                    <span className="bg-white text-black pl-2 pr-3 py-1 preserve-whitespace h-auto">
+                      {renderMessage(message.text)}
+                    </span>
+                  </div>
+                ) : null; // Do not render if not matched
+              })}
+            </div> */}
+
           </div>
         </div>
 
@@ -1642,3 +2013,4 @@ const ChatWindow = (userid) => {
 };
 
 export default ChatWindow;
+
