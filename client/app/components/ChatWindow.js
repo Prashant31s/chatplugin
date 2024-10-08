@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import io from "socket.io-client";
 import Peer from "peerjs";
@@ -66,29 +65,31 @@ const ChatWindow = (userid) => {
   const [userSearchQuery, setUserSearchQuery] = useState(""); // Search query for users
   const [groupSearchQuery, setGroupSearchQuery] = useState(""); // Search query for groups
   const isCallActiveRef = useRef(isCallActive);
-  const localStreamRef= useRef(localStream);
-
+  const localStreamRef = useRef(localStream);
 
   const formatDate = (dateValue) => {
-    if (!dateValue) return 'N/A';
+    if (!dateValue) return "N/A";
     const date = new Date(dateValue);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Today';
+      return "Today";
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+      return "Yesterday";
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
     }
   };
 
   const formatTime = (dateValue) => {
-    if (!dateValue) return 'N/A';
+    if (!dateValue) return "N/A";
     const date = new Date(dateValue);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const shouldShowDateHeader = (currentMsg, prevMsg) => {
@@ -97,8 +98,6 @@ const ChatWindow = (userid) => {
     const prevDate = new Date(prevMsg.createdAt).toDateString();
     return currentDate !== prevDate;
   };
-
-
 
   const filteredUsers = users.filter((user) =>
     user.username.toLowerCase().includes(userSearchQuery.toLowerCase())
@@ -109,55 +108,57 @@ const ChatWindow = (userid) => {
   );
 
   const clearSearch = () => {
-    setSearchQuery("");           // Clear the search input
-    setSearchResults([]);         // Clear the search results
-    setCurrentSearchIndex(0);     // Reset the search index
-    setFilteredMessages([]);      // Reset filtered messages
+    setSearchQuery(""); // Clear the search input
+    setSearchResults([]); // Clear the search results
+    setCurrentSearchIndex(0); // Reset the search index
+    setFilteredMessages([]); // Reset filtered messages
   };
   const handleSearch = (e) => {
     e.preventDefault();
-   
+
     if (!searchQuery) {
       setSearchResults([]); // Clear results if the query is empty
       return;
     }
-   
+
     // Get the indices of matched messages in currentMessages
     const results = currentMessages
       .map((msg, index) => {
         // Extract text content even if the message contains an image
         const textContent = extractTextContent(msg.text);
-        return textContent.toLowerCase().includes(searchQuery.toLowerCase()) ? index : -1;
+        return textContent.toLowerCase().includes(searchQuery.toLowerCase())
+          ? index
+          : -1;
       })
-      .filter(index => index !== -1);
-   
+      .filter((index) => index !== -1);
+
     // Reverse the results to show the latest message first
     const reversedResults = results.reverse();
     setSearchResults(reversedResults); // Store the indices of matched messages
-    setCurrentSearchIndex(0);  // Start from the first matched message (which is now the latest)
-   
+    setCurrentSearchIndex(0); // Start from the first matched message (which is now the latest)
+
     // If there are results, scroll to the first matched message (latest one)
     if (reversedResults.length > 0) {
       scrollToMessage(reversedResults[0]); // Scroll to the first matched message (latest)
     }
   };
-   
-   
+
   // Function to extract text content from a message, even if it contains an image
   const extractTextContent = (text) => {
-    if (!text) return '';
-   
+    if (!text) return "";
+
     // Remove base64 image data
-    const withoutBase64 = text.replace(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/g, '');
-   
+    const withoutBase64 = text.replace(
+      /data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/g,
+      ""
+    );
+
     // Remove <img> tags
-    const withoutImgTags = withoutBase64.replace(/<img\s[^>]*>/g, '');
-   
+    const withoutImgTags = withoutBase64.replace(/<img\s[^>]*>/g, "");
+
     // Trim any resulting whitespace
     return withoutImgTags.trim();
   };
-   
-
 
   const goToNextResult = () => {
     if (searchResults.length > 0) {
@@ -171,7 +172,8 @@ const ChatWindow = (userid) => {
 
   const goToPreviousResult = () => {
     if (searchResults.length > 0) {
-      const prevIndex = (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
+      const prevIndex =
+        (currentSearchIndex - 1 + searchResults.length) % searchResults.length;
       setCurrentSearchIndex(prevIndex);
       const prevMessageIndex = searchResults[prevIndex];
       setFilteredMessages([currentMessages[prevMessageIndex]]); // Display the previous matched message
@@ -179,24 +181,21 @@ const ChatWindow = (userid) => {
     }
   };
 
-
-
   const scrollToMessage = (index) => {
     const messageElement = document.getElementById(`message-${index}`);
     if (messageElement) {
       messageElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
+        behavior: "smooth",
+        block: "center",
       });
     }
   };
   useEffect(() => {
- 
-    setSearchQuery("");    
-    setSearchResults([]);      
-    setCurrentSearchIndex(0);    
-    setFilteredMessages([]);      
-}, [selectedUser, selectedGroup]);
+    setSearchQuery("");
+    setSearchResults([]);
+    setCurrentSearchIndex(0);
+    setFilteredMessages([]);
+  }, [selectedUser, selectedGroup]);
 
   useEffect(() => {
     //console.log("1")
@@ -615,7 +614,7 @@ const ChatWindow = (userid) => {
       setUsers((prevUsers) => [...prevUsers, subEmployee]);
     });
     socket.on("group updated", (updatedGroupDetails) => {
-      //console.log("updategroupdetails",updatedGroupDetails)
+      console.log("updategroupdetails", updatedGroupDetails);
       setGroups((prevGroups) => {
         const groupIndex = prevGroups.findIndex(
           (g) => g.id === updatedGroupDetails.id
@@ -669,7 +668,16 @@ const ChatWindow = (userid) => {
     });
 
     socket.on("group details", (groupDetails) => {
-      //console.log('Received group details:', groupDetails);
+      console.log("Received group details:", groupDetails, groups);
+      
+      setSelectedGroup(groupDetails.group)
+      setGroups((prevGroups) =>
+        prevGroups.map((group) =>
+          group.id === groupDetails.group.id
+            ? { ...group, ...groupDetails.group }
+            : group
+        )
+      );
 
       // Validate the data to ensure arrays are not empty or undefined
       if (
@@ -735,17 +743,24 @@ const ChatWindow = (userid) => {
     socket.on("call-ended", handleCallEnded);
     socket.on("check-call", handlecheckcall);
 
-    socket.on("i am on call", (callingsockets,currentuser,data2) => {
-      console.log("i am oncall", callingsockets[0], callingsockets[1],currentuser,data2,groups);
-      if(data2){
-        for(let i=0;i<groups.length;i++){
-          if(groups[i].id===data2.id){
+    socket.on("i am on call", (callingsockets, currentuser, data2) => {
+      console.log(
+        "i am oncall",
+        callingsockets[0],
+        callingsockets[1],
+        currentuser,
+        data2,
+        groups
+      );
+      if (data2) {
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i].id === data2.id) {
             groups[i].oncall.push(currentuser.id);
             console.log("groupsname", groups[i].name);
           }
         }
-      } 
-      
+      }
+
       for (let i = 0; i < callingsockets.length; i++) {
         setUsersOnCall((prevusersoncall) => [
           ...prevusersoncall,
@@ -762,22 +777,22 @@ const ChatWindow = (userid) => {
     return () => {
       socket.off("user list");
       socket.off("sub-employee joined");
-      socket.off("group updated")
+      socket.off("group updated");
       socket.off("removed from group");
-      socket.off("user removed from group")
+      socket.off("user removed from group");
       socket.off("chat message", handleMessage);
       socket.off("login successful");
       socket.off("login failed");
-      
+
       socket.off("user joined");
       socket.off("user left");
       socket.off("group created");
       socket.off("group list", handlegrouplist);
-      
+
       socket.off("incoming-call", handleIncomingCall);
       socket.off("call-ended", handleCallEnded);
       socket.off("check-call", handlecheckcall);
-      
+
       socket.off("i am on call");
       socket.off("group-call-incoming", handlegroupincomingcall);
       socket.off("member-call-incoming", handlemembercallincoming);
@@ -792,16 +807,19 @@ const ChatWindow = (userid) => {
     userId,
     usersNotInSelectedGroup,
     incominggroupcall,
-    useroncall,groups,groupstreams
+    useroncall,
+    groups,
+    groupstreams,
   ]);
 
-  // useEffect(()=>{
-  //   if(selectedUser && usersoncall){
-  //     console.log("userconcall", usersoncall,selectedUser.socketId);
-  //   console.log("typeof",typeof(usersoncall[0]),typeof(selectedUser.socketId),usersoncall[1]);
-  //   }
+  useEffect(()=>{
+    // if(selectedUser && usersoncall){
+    //   console.log("userconcall", usersoncall,selectedUser.socketId);
+    // console.log("typeof",typeof(usersoncall[0]),typeof(selectedUser.socketId),usersoncall[1]);
+    // }
+    console.log("groups", groups)
 
-  // },[usersoncall,selectedUser])
+  },[groups])
 
   const startCall = useCallback(async () => {
     //check()
@@ -809,7 +827,7 @@ const ChatWindow = (userid) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
-      localStreamRef.current=stream
+      localStreamRef.current = stream;
 
       const call = peer.call(selectedUser.id, stream);
       //call.on("stream", handleStream);
@@ -817,6 +835,7 @@ const ChatWindow = (userid) => {
       socket.emit("call-user", {
         useroncall: useroncall,
         signalData: myId,
+        currentid: userid,
       });
 
       setIsCallActive(true);
@@ -830,12 +849,12 @@ const ChatWindow = (userid) => {
 
   const handleIncomingCall = useCallback(
     (data) => {
-      console.log("incomingcall", data,localStreamRef.current);
+      console.log("incomingcall", data, localStreamRef.current);
       //if (useroncall ) {
-        
-        console.log("ussssssssssssssssscall", localStream, useroncall);
-        //socket.emit("user-in-call");
-        //return;
+
+      //console.log("ussssssssssssssssscall", localStream, useroncall);
+      //socket.emit("user-in-call");
+      //return;
       //}
       setIncomingCall(data);
       setUserOnCall(data.useroncall);
@@ -844,7 +863,7 @@ const ChatWindow = (userid) => {
   );
 
   const handlegrouplist = (data) => {
-    //console.log("group-listtttt", data);
+    console.log("group-listtttt", data);
     setGroups(data);
     if (selectedGroup) {
       for (let i = 0; i < data.length; i++) {
@@ -868,28 +887,31 @@ const ChatWindow = (userid) => {
     }
   }, []);
 
-  const handleIncomingPeerCall = useCallback(async (call) => {
-    console.log("handleincomingpeercall");
-    if(localStreamRef.current){
-      setLocalStream(localStreamRef.current);
-      // setLocalStream(stream);
-      call.answer(localStreamRef.current);
-      call.on("stream", handleStream);
-      setIsCallActive(true);
-    }
-    else{
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setLocalStream(stream);
-        call.answer(stream);
+  const handleIncomingPeerCall = useCallback(
+    async (call) => {
+      console.log("handleincomingpeercall");
+      if (localStreamRef.current) {
+        setLocalStream(localStreamRef.current);
+        // setLocalStream(stream);
+        call.answer(localStreamRef.current);
         call.on("stream", handleStream);
         setIsCallActive(true);
-      } catch (error) {
-        console.error("Error accepting call:", error);
+      } else {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          setLocalStream(stream);
+          call.answer(stream);
+          call.on("stream", handleStream);
+          setIsCallActive(true);
+        } catch (error) {
+          console.error("Error accepting call:", error);
+        }
       }
-    }
-    
-  }, [localStreamRef]);
+    },
+    [localStreamRef]
+  );
 
   const acceptCall = useCallback(async () => {
     console.log("acceptcalll");
@@ -900,7 +922,11 @@ const ChatWindow = (userid) => {
       const call = peer.call(incomingCall.signal, stream);
       call.on("stream", handleStream);
 
-      socket.emit("answer-call", { signal: myId, to: incomingCall.from });
+      socket.emit("answer-call", {
+        signal: myId,
+        to: incomingCall.from,
+        user: userid,
+      });
       setIsCallActive(true);
       setIncomingCall(null);
     } catch (error) {
@@ -924,40 +950,44 @@ const ChatWindow = (userid) => {
   );
 
   useEffect(() => {
-    console.log("groupstreams", groupstreams, localStream,localStreamRef.current);
-  }, [groupstreams, localStream,localStreamRef]);
+    console.log(
+      "groupstreams",
+      groupstreams,
+      localStream,
+      localStreamRef.current
+    );
+  }, [groupstreams, localStream, localStreamRef]);
 
   const endCall = useCallback(() => {
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
-      
     }
-    if(localStreamRef.current){
+    if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     setLocalStream(null);
     setRemoteStream(null);
     setGroupStreams([]);
     setIsCallActive(false);
-    localStreamRef.current=null;
-    
+    localStreamRef.current = null;
 
-    socket.emit("end-call", useroncall.id);
+    socket.emit("end-call", userid, useroncall.id);
     //console.log("select",selectedUser);
     //setUserOnCall(null);
   }, [localStream, socket, useroncall, remoteStream, localStreamRef]);
 
   const handleCallEnded = useCallback(
-    (data1, data2,videoid) => {
-      //console.log("selecteduser call ended", data1, data2,vi);
-      if (data2 && socket.id === data1) {
+    (data1, data2, videoid) => {
+      console.log("selecteduser call ended", data1, data2,videoid, incominggroupcall);
+      
+      if (data2 && userid === data1) {
         if (localStream) {
           localStream.getTracks().forEach((track) => track.stop());
         }
         if (remoteStream) {
           remoteStream.getTracks().forEach((track) => track.stop());
         }
-        localStreamRef.current=null;
+        localStreamRef.current = null;
         setLocalStream(null);
         setRemoteStream(null);
         setIsCallActive(false);
@@ -965,10 +995,9 @@ const ChatWindow = (userid) => {
       } else if (!data2) {
         if (localStream) {
           localStream.getTracks().forEach((track) => track.stop());
-          
         }
-        if(localStreamRef&&localStreamRef.current){
-          localStreamRef.getTracks().forEach((track) => track.stop());
+        if (localStreamRef && localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track) => track.stop());
         }
         if (remoteStream) {
           remoteStream.getTracks().forEach((track) => track.stop());
@@ -978,7 +1007,7 @@ const ChatWindow = (userid) => {
         setIsCallActive(false);
         setGroupStreams([]);
       }
-      if (data2) {
+      if (incominggroupcall&&data2===incominggroupcall.from) {
         //setGroupStreams([]);
         setIncomingGroupCall(null);
       } else {
@@ -986,7 +1015,15 @@ const ChatWindow = (userid) => {
       }
       //setUserOnCall(null);
     },
-    [localStream, remoteStream, userid, socket,isCallActive, localStreamRef,groupstreams]
+    [incominggroupcall,
+      localStream,
+      remoteStream,
+      userid,
+      socket,
+      isCallActive,
+      localStreamRef,
+      groupstreams,
+    ]
   );
 
   const startGroupCall = useCallback(async () => {
@@ -995,14 +1032,13 @@ const ChatWindow = (userid) => {
     //console.log("started-call");
     try {
       let stream;
-      console.log("startvcallreffff", localStreamRef.current)
+      console.log("startvcallreffff", localStreamRef.current);
       if (localStreamRef.current) {
         stream = localStreamRef.current;
       } else {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setLocalStream(stream);
-        localStreamRef.current=stream
-
+        localStreamRef.current = stream;
       }
       console.log("group-details", selectedGroup.members);
       for (let i = 0; i < selectedGroup.members.length; i++) {
@@ -1015,7 +1051,7 @@ const ChatWindow = (userid) => {
       }
 
       //console.log("group-call");
-      socket.emit("group-call", selectedGroup, myId);
+      socket.emit("group-call", selectedGroup, myId, userid);
       // socket.emit("call-user", {
       //   useroncall: useroncall,
       //   signalData: myId,
@@ -1027,57 +1063,74 @@ const ChatWindow = (userid) => {
     } catch (error) {
       console.error("Error starting call:", error);
     }
-  }, [selectedGroup, socket, myId, peer, useroncall, localStream,localStreamRef]);
-    const checkcallactive= ()=>{
-      console.log("checkcaaaaaaaaaaalaaccitbe0", isCallActive);
-      return isCallActiveRef.current
-      //return isCallActive;
-    }
-  
-    const handlegroupincomingcall = useCallback(
-      (data) => {
-        console.log(
-          "groupincomingcall",
-          data.data.members,
-          data.from,
-          isCallActive,
-          remoteStream
-        );
-        setGroupData(data);
-        console.log("incoming data", data);
-        const check = checkcallactive();
-        if (check) {
-          console.log("responseiscallactive",check)
-          return;
-        }
-        
-        // if (useroncall || localStream) {
-        //   socket.emit("user-in-call");
-        //   return;
-        // }
-        setIncomingGroupCall(data);
-        setUserOnCall(data.useroncall);
-        console.log("incoming calllllreeeed", localStreamRef.current)
-        if (localStream) {
-          //console.log("datalocalstream", localStream);
-          data.data.members.forEach((member) => {
-            const call = peer.call(member, localStreamRef.current);
-            call.on("stream", (remoteStream) => {
-              //console.log("handlegroupincomingcall handlestream");
-              handleStream(remoteStream);
-            });
-          });
-        }
+  }, [
+    selectedGroup,
+    socket,
+    myId,
+    peer,
+    useroncall,
+    localStream,
+    localStreamRef,
+  ]);
+  const checkcallactive = () => {
+    console.log("checkcaaaaaaaaaaalaaccitbe0", isCallActive);
+    return isCallActiveRef.current;
+    //return isCallActive;
+  };
 
-        // data.members.forEach((member) => {
-        //   const call = peer.call(member, localStream);
-        //   call.on("stream", (remoteStream) => {
-        //     handleStream(remoteStream);
-        //   });
-        // });
-      },
-      [useroncall, localStream, socket, incominggroupcall,checkcallactive,isCallActive,groupdata,localStreamRef]
-    );
+  const handlegroupincomingcall = useCallback(
+    (data) => {
+      console.log(
+        "groupincomingcall",
+        data.data.members,
+        data.from,
+        isCallActive,
+        remoteStream
+      );
+      setGroupData(data);
+      console.log("incoming data", data);
+      const check = checkcallactive();
+      if (check) {
+        console.log("responseiscallactive", check);
+        return;
+      }
+
+      // if (useroncall || localStream) {
+      //   socket.emit("user-in-call");
+      //   return;
+      // }
+      setIncomingGroupCall(data);
+      setUserOnCall(data.useroncall);
+      console.log("incoming calllllreeeed", localStreamRef.current);
+      if (localStream) {
+        //console.log("datalocalstream", localStream);
+        data.data.members.forEach((member) => {
+          const call = peer.call(member, localStreamRef.current);
+          call.on("stream", (remoteStream) => {
+            //console.log("handlegroupincomingcall handlestream");
+            handleStream(remoteStream);
+          });
+        });
+      }
+
+      // data.members.forEach((member) => {
+      //   const call = peer.call(member, localStream);
+      //   call.on("stream", (remoteStream) => {
+      //     handleStream(remoteStream);
+      //   });
+      // });
+    },
+    [
+      useroncall,
+      localStream,
+      socket,
+      incominggroupcall,
+      checkcallactive,
+      isCallActive,
+      groupdata,
+      localStreamRef,
+    ]
+  );
 
   const acceptgroupCall = useCallback(async () => {
     console.log("acceptgroupcalll");
@@ -1085,7 +1138,7 @@ const ChatWindow = (userid) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setLocalStream(stream);
-      localStreamRef.current=stream
+      localStreamRef.current = stream;
 
       const call = peer.call(incominggroupcall.signal, localStreamRef.current);
       call.on("stream", handleStream);
@@ -1093,22 +1146,22 @@ const ChatWindow = (userid) => {
       socket.emit("answer-call", {
         signal: myId,
         to: incominggroupcall.from,
-        groupcall: true,
+        user: userid,
+        groupcall: incominggroupcall.data.id,
       });
 
       groupdata.data.members.forEach((member) => {
-        console.log("groupdatassssssssss", member);
+        console.log("groupdatassssssssss", groupdata);
         if (groupdata.from != member && member != userid.userid) {
           //console.log("groupdatassssssssssffeferr", member,userid.userid);
           const call = peer.call(member, localStreamRef.current);
           // console.log("acceptgroupcall handlestream");
           call.on("stream", handleStream);
           //socket.emit("member-call", { signal: myId, to: groupdata.from });
-          socket.emit("member-call", myId, groupdata, member);
+          socket.emit("member-call", userid, myId, groupdata, member);
         }
       });
 
-      
       setIsCallActive(true);
       setOnCallGroup(groupdata.data);
       setIncomingGroupCall(null);
@@ -1116,7 +1169,15 @@ const ChatWindow = (userid) => {
     } catch (error) {
       console.error("Error accepting call:", error);
     }
-  }, [incominggroupcall, socket, myId, peer, userid, localStream,localStreamRef]);
+  }, [
+    incominggroupcall,
+    socket,
+    myId,
+    peer,
+    userid,
+    localStream,
+    localStreamRef,
+  ]);
 
   //const handlemembercallincoming
 
@@ -1129,7 +1190,8 @@ const ChatWindow = (userid) => {
       console.log(
         "incominggroupcall at function start:",
         incominggroupcall,
-        groupstreams,localStreamRef.current
+        groupstreams,
+        localStreamRef.current
       );
       if (incominggroupcall) {
         console.log("returnedddddddddddddddddd");
@@ -1140,7 +1202,7 @@ const ChatWindow = (userid) => {
       try {
         //setLocalStream(stream);
         if (!incominggroupcall) {
-          if (localStream||localStreamRef.current) {
+          if (localStream || localStreamRef.current) {
             const call = peer.call(data.signal, localStreamRef.current);
             console.log("handlemembercallincoming handlestream", groupstreams);
             call.on("stream", handleStream);
@@ -1148,7 +1210,7 @@ const ChatWindow = (userid) => {
             const stream = await navigator.mediaDevices.getUserMedia({
               audio: true,
             });
-            localStreamRef.current=stream
+            localStreamRef.current = stream;
             const call = peer.call(data.signal, stream);
             console.log("handlemembercallincoming handlestream", groupstreams);
             call.on("stream", handleStream);
@@ -1158,25 +1220,33 @@ const ChatWindow = (userid) => {
         console.error("Error accepting call:", error);
       }
     },
-    [useroncall, localStream, socket, peer, incominggroupcall,localStreamRef,groupstreams]
+    [
+      useroncall,
+      localStream,
+      socket,
+      peer,
+      incominggroupcall,
+      localStreamRef,
+      groupstreams,
+    ]
   );
 
   const joinGroupCall = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       //setLocalStream(stream);
-      localStreamRef.current=stream
+      localStreamRef.current = stream;
       //console.log("prevgroupdata", groupdata);
 
       selectedGroup.oncall.forEach((member) => {
-        console.log("sssssssselle", selectedGroup)
+        console.log("sssssssselle", selectedGroup);
         console.log("groupdata", member);
         // if (groupdata.from != member) {
         const call = peer.call(member, stream);
         call.on("stream", handleStream);
         //socket.emit("member-call", { signal: myId, to: groupdata.from });
         //socket.emit("member-call", myId, selectedGroup, member);
-        socket.emit("join-group-call", myId, selectedGroup, member);
+        socket.emit("join-group-call", userid, myId, selectedGroup, member);
         // }
       });
 
@@ -1193,16 +1263,22 @@ const ChatWindow = (userid) => {
     } catch (error) {
       console.error("Error accepting call:", error);
     }
-  }, [peer, socket, , selectedGroup, localStream,localStreamRef.current]);
+  }, [peer, socket, , selectedGroup, localStream, localStreamRef.current]);
 
   const groupcalldeclined = useCallback(() => {
-    socket.emit ("group-call-declined");
+    socket.emit("group-call-declined", userid);
     setIncomingGroupCall(null);
   }, [socket]);
 
   const endgroupCall = useCallback(() => {
     let targetuserid = userid;
-    socket.emit("end-call", targetuserid, oncallgroup, localStreamRef.current.id);
+    socket.emit(
+      "end-call",
+      userid,
+      targetuserid,
+      oncallgroup,
+      localStreamRef.current.id
+    );
     setOnGroupCall(false);
     console.log("ended-groupcall");
     if (localStream) {
@@ -1213,13 +1289,12 @@ const ChatWindow = (userid) => {
     setRemoteStream(null);
     setIsCallActive(false);
     setGroupStreams([]);
-    localStreamRef.current=null;
-    
-    
+    localStreamRef.current = null;
+
     //socket.emit("end-call", useroncall.id);
     //console.log("select",selectedUser);
     //setUserOnCall(null);
-  }, [localStream, socket, useroncall,remoteStream, localStreamRef]);
+  }, [localStream, socket, useroncall, remoteStream, localStreamRef]);
 
   // useEffect(()=>{
   //   console.log("iscallactive", isCallActive);
@@ -1250,25 +1325,28 @@ const ChatWindow = (userid) => {
     [isCallActive]
   );
 
-  const handlecalllistupdate = (data1, data2,videoid) => {
+  const handlecalllistupdate = (data1, data2, videoid) => {
     console.log("videoid", videoid, groupstreams);
-    if(groupstreams.length){
-      for(let i=0;i<groupstreams.length;i++){
-        console.log("gggggggggggggggggggggg", groupstreams[i], groupstreams[i].id)
-        if(groupstreams[i].id==videoid){
-          groupstreams.splice(i,1)
+    if (groupstreams.length) {
+      for (let i = 0; i < groupstreams.length; i++) {
+        console.log(
+          "gggggggggggggggggggggg",
+          groupstreams[i],
+          groupstreams[i].id
+        );
+        if (groupstreams[i].id == videoid) {
+          groupstreams.splice(i, 1);
         }
       }
     }
-   
+
     setUsersOnCall((prevusersoncall) =>
       prevusersoncall.filter((usersoncall) => usersoncall !== data1)
     );
-    for (let i = 0; i < data2.length; i++) {
-      setUsersOnCall((prevusersoncall) =>
-        prevusersoncall.filter((usersoncall) => usersoncall !== data2[i])
-      );
-    }
+
+    setUsersOnCall((prevusersoncall) =>
+      prevusersoncall.filter((usersoncall) => usersoncall !== data2)
+    );
   };
 
   const addUserToGroup = useCallback(
@@ -1286,36 +1364,36 @@ const ChatWindow = (userid) => {
   // Update the removeUserFromGroup function
   const removeUserFromGroup = useCallback(
     (userIdToRemove) => {
-        if (socket && selectedGroup) {
-            // Emit the socket event to remove the user from the group
-            socket.emit("remove from group", {
-                groupId: selectedGroup.id,
-                userId: userIdToRemove,
-            });
- 
-            // Immediately update the local state for real-time update
-            setUsersInSelectedGroup((prevUsers) =>
-                prevUsers.filter((user) => user.id !== userIdToRemove)
-            );
- 
-            setUsersNotInSelectedGroup((prevUsers) => [
-                ...prevUsers,
-                // Assuming you have access to the user details here, add them back to the "add user" list
-                users.find((user) => user.id === userIdToRemove),
-            ]);
- 
-            if (userIdToRemove === userId) {
-                // If the user is removing themselves, update the UI immediately
-                setGroups((prevGroups) =>
-                    prevGroups.filter((group) => group.id !== selectedGroup.id)
-                );
-                setSelectedGroup(null);
-                setActiveChat("private");
-            }
+      if (socket && selectedGroup) {
+        // Emit the socket event to remove the user from the group
+        socket.emit("remove from group", {
+          groupId: selectedGroup.id,
+          userId: userIdToRemove,
+        });
+
+        // Immediately update the local state for real-time update
+        setUsersInSelectedGroup((prevUsers) =>
+          prevUsers.filter((user) => user.id !== userIdToRemove)
+        );
+
+        setUsersNotInSelectedGroup((prevUsers) => [
+          ...prevUsers,
+          // Assuming you have access to the user details here, add them back to the "add user" list
+          users.find((user) => user.id === userIdToRemove),
+        ]);
+
+        if (userIdToRemove === userId) {
+          // If the user is removing themselves, update the UI immediately
+          setGroups((prevGroups) =>
+            prevGroups.filter((group) => group.id !== selectedGroup.id)
+          );
+          setSelectedGroup(null);
+          setActiveChat("private");
         }
+      }
     },
     [socket, selectedGroup, userId, users]
-);
+  );
 
   const getChatId = (user1, user2) => {
     return [user1, user2].sort().join("-");
@@ -1380,13 +1458,14 @@ const ChatWindow = (userid) => {
   };
 
   const selectGroup = (group) => {
-    //console.log("selectedgroup", group);
+    console.log("selectedgroup", group);
+    socket.emit("fetch group details", group.id);
     setSelectedGroup(group);
     setActiveChat("group");
     setSelectedUser(null);
     const chatId = `group-${group.id}`;
     socket.emit("fetch chat history", chatId);
-    socket.emit("fetch group details", group.id);
+    
   };
 
   const createGroup = useCallback(() => {
@@ -1733,16 +1812,16 @@ const ChatWindow = (userid) => {
               {activeChat === "private" && selectedUser
                 ? `Chat with ${selectedUser.username}`
                 : activeChat === "group" && selectedGroup
-                  ? `Group: ${selectedGroup.name}`
-                  : activeChat === "employer"
-                    ? "Employer Room"
-                    : "Select a user, group, or room to chat"}
+                ? `Group: ${selectedGroup.name}`
+                : activeChat === "employer"
+                ? "Employer Room"
+                : "Select a user, group, or room to chat"}
             </h2>
 
             <div className="mt-4">
               {!isCallActive ? (
                 selectedUser ? (
-                  usersoncall.includes(String(selectedUser.socketId)) ? (
+                  usersoncall.includes(String(selectedUser.id)) ? (
                     <p className="text-red-500">
                       User is not available for call
                     </p>
@@ -1755,7 +1834,6 @@ const ChatWindow = (userid) => {
                     </button>
                   )
                 ) : selectedGroup ? (
-
                   selectedGroup.oncall.length ? (
                     <button onClick={joinGroupCall}>
                       join call {selectedGroup.name}
@@ -1839,12 +1917,22 @@ const ChatWindow = (userid) => {
                 <div
                   key={index}
                   id={`message-${index}`} // Assign unique id for scrolling
-                  className={`mb-2 ${message.sender === userId ? "text-right" : "text-left"}
-        ${currentSearchIndex === searchResults.indexOf(index) ? "highlighted-message" : ""}`} // Add highlighted class
+                  className={`mb-2 ${
+                    message.sender === userId ? "text-right" : "text-left"
+                  }
+        ${
+          currentSearchIndex === searchResults.indexOf(index)
+            ? "highlighted-message"
+            : ""
+        }`} // Add highlighted class
                 >
                   <span className="font-bold ">
-                    {message.sender === userId ? "You" : users.find((u) => u.id === message.sender)?.username}:
-                  </span>{" "} <span>{formatTime(message.createdAt)}</span>
+                    {message.sender === userId
+                      ? "You"
+                      : users.find((u) => u.id === message.sender)?.username}
+                    :
+                  </span>{" "}
+                  <span>{formatTime(message.createdAt)}</span>
                   <span className="bg-white text-black pl-2 pr-3 py-1 preserve-whitespace h-auto">
                     {renderMessage(message.text, message.images)}
                   </span>
@@ -1916,14 +2004,23 @@ const ChatWindow = (userid) => {
 
                 {/* Close button to clear search */}
                 {searchResults.length > 0 && (
-                  <button type="button" onClick={clearSearch} title="Clear Search">✖</button>
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    title="Clear Search"
+                  >
+                    ✖
+                  </button>
                 )}
               </form>
 
               {searchResults.length > 0 && (
                 <div>
                   <button onClick={goToPreviousResult}>Previous</button>
-                  <span> {currentSearchIndex + 1}/{searchResults.length} </span>
+                  <span>
+                    {" "}
+                    {currentSearchIndex + 1}/{searchResults.length}{" "}
+                  </span>
                   <button onClick={goToNextResult}>Next</button>
                 </div>
               )}
@@ -1951,7 +2048,6 @@ const ChatWindow = (userid) => {
                 ) : null; // Do not render if not matched
               })}
             </div> */}
-
           </div>
         </div>
 
@@ -2043,6 +2139,3 @@ const ChatWindow = (userid) => {
 };
 
 export default ChatWindow;
-
-
-
